@@ -1,0 +1,1849 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Школьник в буфете без денег 4 — Дома</title>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; user-select:none; -webkit-tap-highlight-color:transparent; }
+    html, body {
+        width:100%; height:100%;
+        background:#0f0f1a;
+        font-family:'Segoe UI',Arial,sans-serif;
+        overflow:hidden; touch-action:none;
+        overscroll-behavior:none;
+    }
+    #game-container {
+        position:fixed; inset:0;
+        width:100vw; height:100vh;
+        height:100dvh;
+        background:#16213e;
+        overflow:hidden;
+    }
+    canvas { display:block; width:100%; height:100%; }
+
+    .overlay {
+        position:absolute; inset:0;
+        display:flex; flex-direction:column;
+        justify-content:center; align-items:center;
+        background:rgba(0,0,0,.9); color:#fff;
+        text-align:center; padding:24px; z-index:10;
+        backdrop-filter:blur(5px); transition:opacity .3s;
+    }
+    .overlay.hidden { opacity:0; pointer-events:none; }
+    h1 { font-size:clamp(24px,6.5vw,42px); margin-bottom:12px; color:#ffd166;
+         text-shadow:0 0 20px rgba(255,209,102,.5); }
+    p  { font-size:clamp(13px,3.6vw,18px); margin-bottom:12px; line-height:1.5; color:#ddd;
+         max-width:640px; }
+    button {
+        background:#ffd166; border:none; border-radius:50px;
+        padding:14px 40px; font-size:clamp(15px,4.5vw,22px);
+        font-weight:bold; color:#1a1a2e; cursor:pointer;
+        box-shadow:0 6px 0 #b8943e; margin-top:8px;
+        transition:transform .1s, box-shadow .15s;
+        font-family:inherit;
+    }
+    button:active { transform:translateY(4px); box-shadow:0 2px 0 #b8943e; }
+
+    .timer-bar {
+        position:absolute; top:calc(env(safe-area-inset-top, 0px) + 10px);
+        left:5%; width:90%; height:10px;
+        background:rgba(255,255,255,.15); border-radius:10px;
+        overflow:hidden; z-index:5; pointer-events:none;
+    }
+    .timer-fill {
+        height:100%; width:100%;
+        background:linear-gradient(90deg,#06d6a0,#ffd166,#ef476f);
+        transition:width .1s linear;
+    }
+    .timer-text {
+        position:absolute; top:calc(env(safe-area-inset-top, 0px) + 26px);
+        left:50%; transform:translateX(-50%);
+        color:#fff; font-weight:bold; font-size:clamp(13px,3.6vw,18px);
+        text-shadow:0 2px 8px rgba(0,0,0,.9); z-index:5; pointer-events:none;
+    }
+    .hud-info {
+        position:absolute; top:calc(env(safe-area-inset-top, 0px) + 26px);
+        left:calc(env(safe-area-inset-left, 0px) + 14px);
+        color:#ffd166; font-weight:bold; font-size:clamp(12px,3.2vw,16px);
+        text-shadow:0 2px 8px rgba(0,0,0,.9); z-index:5; pointer-events:none;
+    }
+    .hud-danger {
+        position:absolute;
+        top:calc(env(safe-area-inset-top, 0px) + 26px);
+        right:calc(env(safe-area-inset-right, 0px) + 14px);
+        color:#ff6b6b; font-weight:bold; font-size:clamp(12px,3.2vw,16px);
+        text-shadow:0 2px 8px rgba(0,0,0,.9); z-index:5; pointer-events:none;
+        display:none;
+    }
+    .hud-danger.show { display:block; animation:pulse .5s infinite alternate; }
+    .hud-boost {
+        position:absolute;
+        top:calc(env(safe-area-inset-top, 0px) + 52px);
+        right:calc(env(safe-area-inset-right, 0px) + 14px);
+        color:#4ecdc4; font-weight:bold; font-size:clamp(12px,3.2vw,16px);
+        text-shadow:0 2px 8px rgba(0,0,0,.9); z-index:5; pointer-events:none;
+        display:none;
+    }
+    .hud-boost.show { display:block; }
+    .hall-hint {
+        position:absolute;
+        top:calc(env(safe-area-inset-top, 0px) + 80px);
+        left:50%; transform:translateX(-50%);
+        color:#ffd166;
+        font-weight:bold;
+        font-size:clamp(12px,3.2vw,16px);
+        background:rgba(0,0,0,.75);
+        padding:6px 16px;
+        border-radius:20px;
+        z-index:6; pointer-events:none;
+        display:none;
+        text-align:center;
+        border:2px solid rgba(255,209,102,.5);
+    }
+    .hall-hint.show { display:block; animation:hallPulse 1s infinite alternate; }
+    @keyframes hallPulse { from { opacity:0.7; } to { opacity:1; } }
+
+    .hud-grace {
+        position:absolute;
+        top:50%; left:50%;
+        transform:translate(-50%, -50%);
+        color:#4ecdc4;
+        font-weight:bold;
+        font-size:clamp(80px, 22vw, 180px);
+        text-shadow:0 0 40px rgba(78,205,196,.8), 0 6px 20px rgba(0,0,0,.8);
+        z-index:8; pointer-events:none;
+        display:none;
+        animation:gracePulse .5s infinite alternate;
+    }
+    .hud-grace.show { display:block; }
+    @keyframes gracePulse { from { transform:translate(-50%,-50%) scale(1); } to { transform:translate(-50%,-50%) scale(1.15); } }
+
+    .grace-banner {
+        position:absolute;
+        top:25%; left:50%;
+        transform:translateX(-50%);
+        color:#4ecdc4;
+        font-weight:bold;
+        font-size:clamp(16px,4.5vw,28px);
+        text-shadow:0 2px 12px rgba(0,0,0,.9);
+        z-index:8; pointer-events:none;
+        display:none;
+        text-align:center;
+    }
+    .grace-banner.show { display:block; }
+    @keyframes pulse { from { opacity:1; } to { opacity:.4; } }
+
+    .dialogue-box {
+        position:absolute;
+        left:50%; bottom:calc(env(safe-area-inset-bottom, 0px) + 30px);
+        transform:translateX(-50%);
+        width:min(90%, 720px);
+        background:rgba(20,20,35,.96);
+        border:3px solid #ffd166;
+        border-radius:16px;
+        padding:20px 24px;
+        color:#fff;
+        z-index:20;
+        box-shadow:0 10px 30px rgba(0,0,0,.7);
+        display:none;
+    }
+    .dialogue-box.show { display:block; animation:slideUp .35s ease-out; }
+    @keyframes slideUp { from { transform:translate(-50%, 30px); opacity:0; } to { transform:translate(-50%,0); opacity:1; } }
+    .dialogue-speaker {
+        font-weight:bold; color:#ffd166; font-size:clamp(14px,3.8vw,18px);
+        margin-bottom:8px;
+    }
+    .dialogue-text {
+        font-size:clamp(13px,3.6vw,17px); line-height:1.5; color:#eee;
+    }
+    .dialogue-hint {
+        margin-top:10px; font-size:clamp(11px,3vw,14px); color:#888;
+        font-style:italic;
+    }
+
+    .choice-box {
+        position:absolute;
+        left:50%; top:50%;
+        transform:translate(-50%, -50%);
+        width:min(92%, 720px);
+        display:none;
+        flex-direction:column;
+        gap:14px;
+        z-index:22;
+    }
+    .choice-box.show { display:flex; }
+    .choice-btn {
+        background:linear-gradient(180deg, #ff6b6b 0%, #c92a2a 100%);
+        border:none;
+        border-radius:16px;
+        padding:22px 20px;
+        font-size:clamp(14px,3.9vw,20px);
+        font-weight:bold;
+        color:#fff;
+        cursor:pointer;
+        box-shadow:0 6px 0 #7a1a1a, 0 10px 20px rgba(0,0,0,.5);
+        transition:transform .1s, box-shadow .15s;
+        text-align:center;
+        font-family:inherit;
+        letter-spacing:0.5px;
+        line-height:1.3;
+    }
+    .choice-btn.green {
+        background:linear-gradient(180deg, #51cf66 0%, #2f9e44 100%);
+        box-shadow:0 6px 0 #1a5c28, 0 10px 20px rgba(0,0,0,.5);
+    }
+    .choice-btn:active {
+        transform:translateY(4px);
+        box-shadow:0 2px 0 #7a1a1a, 0 4px 10px rgba(0,0,0,.5);
+    }
+    .choice-btn.green:active {
+        box-shadow:0 2px 0 #1a5c28, 0 4px 10px rgba(0,0,0,.5);
+    }
+
+    .choice-backdrop {
+        position:absolute; inset:0;
+        background:rgba(0,0,0,.6);
+        z-index:21;
+        display:none;
+    }
+    .choice-backdrop.show { display:block; }
+
+    .spank-overlay {
+        position:absolute; inset:0;
+        background:rgba(30,0,0,.96);
+        display:none;
+        flex-direction:column;
+        justify-content:center; align-items:center;
+        text-align:center; padding:24px;
+        z-index:30;
+        color:#fff;
+    }
+    .spank-overlay.show { display:flex; animation:fadeIn .5s; }
+    @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+    .spank-emoji {
+        font-size:clamp(60px,18vw,110px);
+        margin-bottom:16px;
+        animation:shake .4s infinite;
+    }
+    @keyframes shake {
+        0%,100% { transform:rotate(-8deg); }
+        50% { transform:rotate(8deg); }
+    }
+    .spank-title {
+        font-size:clamp(26px,7vw,48px);
+        color:#ff6b6b;
+        font-weight:bold;
+        text-shadow:0 0 30px rgba(255,80,80,.7);
+        margin-bottom:16px;
+    }
+    .spank-text {
+        font-size:clamp(14px,4vw,20px);
+        color:#eee;
+        max-width:600px;
+        line-height:1.6;
+        margin-bottom:24px;
+    }
+</style>
+</head>
+<body>
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+
+    <div class="timer-bar"><div class="timer-fill" id="timerFill"></div></div>
+    <div class="timer-text" id="timerText">2:00</div>
+    <div class="hud-info" id="speedHud">👟 Скорость: обычная</div>
+    <div class="hud-danger" id="dangerHud">🚨 ОПАСНОСТЬ!</div>
+    <div class="hud-boost" id="boostHud">⚡ ЭНЕРГЕТИК: 0с</div>
+    <div class="hall-hint" id="hallHint">🏛️ ВПЕРЕДИ БОЛЬШОЙ ЗАЛ — ОСТОРОЖНО!</div>
+
+    <div class="hud-grace" id="graceHud">5</div>
+    <div class="grace-banner" id="graceBanner">🏃 ФОРА <span id="graceSeconds">5</span>с — БЕГИ!</div>
+
+    <div class="dialogue-box" id="dialogueBox">
+        <div class="dialogue-speaker" id="dialogueSpeaker">Мама</div>
+        <div class="dialogue-text" id="dialogueText"></div>
+        <div class="dialogue-hint" id="dialogueHint">Нажми, чтобы продолжить</div>
+    </div>
+
+    <div class="choice-backdrop" id="choiceBackdrop"></div>
+    <div class="choice-box" id="choiceBox">
+        <button class="choice-btn green" id="choiceLie">🎓 Я БЫЛ В ШКОЛЕ И ПОЛУЧИЛ ПЯТЁРКУ (ЛОЖЬ)</button>
+        <button class="choice-btn" id="choiceTruth">🏃 Я СБЕЖАЛ ИЗ ШКОЛЫ И УКРАЛ СОСИСКУ В ТЕСТЕ</button>
+    </div>
+
+    <div class="spank-overlay" id="spankOverlay">
+        <div class="spank-emoji">👨‍🦰💥👦</div>
+        <div class="spank-title">ТЕБЕ КОНЕЦ!</div>
+        <div class="spank-text" id="spankText">
+            Папа догнал тебя и хорошенько выпорол ремнём.<br>
+            Мораль: не ври родителям и не кради сосиски в тесте!
+        </div>
+        <button id="spankRetry" style="background:#ff6b6b;color:#fff;box-shadow:0 6px 0 #7a1a1a;">Попробовать снова</button>
+    </div>
+
+    <div class="overlay" id="startScreen">
+        <div class="emoji-big" style="font-size:clamp(44px,14vw,76px);margin-bottom:8px;">🏠</div>
+        <h1>Школьник в буфете без денег 4</h1>
+        <p>Ты наконец-то дома.<br>
+           Но в квартире тебя ждут родители.</p>
+        <p style="color:#ff8a8a;">Они очень переживали.<br>
+           Что ты им скажешь?</p>
+        <p style="font-size:.9em;color:#aaa;">Управление: джойстик (левый нижний угол)<br>или WASD / стрелки</p>
+        <button id="startBtn">ВОЙТИ В КВАРТИРУ 🚪</button>
+    </div>
+
+    <div class="overlay death-screen hidden" id="deathScreen" style="background:rgba(70,0,0,.93);">
+        <div class="emoji-big" style="font-size:clamp(44px,14vw,76px);margin-bottom:8px;">💀</div>
+        <h1 id="deathTitle">Игра окончена</h1>
+        <p id="deathReason">Тебя поймали</p>
+        <button id="retryBtn">Попробовать снова</button>
+    </div>
+
+    <div class="overlay win-screen hidden" id="winScreen" style="background:rgba(0,70,35,.93);">
+        <div class="emoji-big" style="font-size:clamp(44px,14vw,76px);margin-bottom:8px;">🏆</div>
+        <h1 id="winTitle">Ты выбрался!</h1>
+        <p id="winReason">Ты спасся от родителей!</p>
+        <button id="winRetryBtn">Играть снова</button>
+    </div>
+</div>
+
+<script>
+(function(){
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const timerFill = document.getElementById('timerFill');
+    const timerText = document.getElementById('timerText');
+    const speedHud = document.getElementById('speedHud');
+    const dangerHud = document.getElementById('dangerHud');
+    const boostHud = document.getElementById('boostHud');
+    const graceHud = document.getElementById('graceHud');
+    const graceBanner = document.getElementById('graceBanner');
+    const graceSeconds = document.getElementById('graceSeconds');
+    const hallHint = document.getElementById('hallHint');
+
+    const startScreen = document.getElementById('startScreen');
+    const deathScreen = document.getElementById('deathScreen');
+    const winScreen = document.getElementById('winScreen');
+    const deathReason = document.getElementById('deathReason');
+    const deathTitle = document.getElementById('deathTitle');
+    const winReason = document.getElementById('winReason');
+    const winTitle = document.getElementById('winTitle');
+    const startBtn = document.getElementById('startBtn');
+    const retryBtn = document.getElementById('retryBtn');
+    const winRetryBtn = document.getElementById('winRetryBtn');
+
+    const dialogueBox = document.getElementById('dialogueBox');
+    const dialogueSpeaker = document.getElementById('dialogueSpeaker');
+    const dialogueText = document.getElementById('dialogueText');
+    const dialogueHint = document.getElementById('dialogueHint');
+
+    const choiceBox = document.getElementById('choiceBox');
+    const choiceBackdrop = document.getElementById('choiceBackdrop');
+    const choiceLie = document.getElementById('choiceLie');
+    const choiceTruth = document.getElementById('choiceTruth');
+
+    const spankOverlay = document.getElementById('spankOverlay');
+    const spankText = document.getElementById('spankText');
+    const spankRetry = document.getElementById('spankRetry');
+
+    // ============ КОНСТАНТЫ ============
+    const GAME_DURATION = 120;
+    const GRACE_PERIOD = 5;
+    const PLAYER_RADIUS = 14;
+    const PLAYER_SPEED = 3.4;
+    const PLAYER_SPEED_BOOSTED = 5.6;
+    const BOOST_DURATION = 5;
+    const ENEMY_RADIUS = 16;
+    const TILE = 60;
+
+    // ============ СОСТОЯНИЕ ============
+    let gameState = 'start';
+    let scenario = null;
+    let timeLeft = GAME_DURATION;
+    let graceTime = 0;
+    let lastTimestamp = 0;
+    let animationId = null;
+
+    let WORLD_W = 0, WORLD_H = 0;
+    let scale = 1, offsetX = 0, offsetY = 0;
+    let viewW = 0, viewH = 0;
+
+    let player = { x:0, y:0, boostTime:0 };
+    let dad = null;
+    let momGuard = null;
+    let skibidis = [];
+    let energyDrinks = [];
+    let goalExit = { x:0, y:0, reached:false, r:0 };
+    let worldMap = [];
+    let MAZE_COLS = 0, MAZE_ROWS = 0;
+    let hall = { tileX0:0, tileY0:0, tileX1:0, tileY1:0, x:0, y:0, w:0, h:0 };
+
+    // ============ ДЖОЙСТИК ============
+    const joystick = {
+        baseX: 0, baseY: 0,
+        baseRadius: 65,
+        knobX: 0, knobY: 0,
+        knobRadius: 28,
+        active: false,
+        touchId: null,
+        dirX: 0, dirY: 0
+    };
+
+    function updateJoystickLayout() {
+        joystick.baseX = 80;
+        joystick.baseY = viewH - 80;
+        joystick.baseRadius = Math.min(70, Math.min(viewW, viewH) * 0.14);
+        joystick.knobRadius = joystick.baseRadius * 0.45;
+        if (!joystick.active) {
+            joystick.knobX = joystick.baseX;
+            joystick.knobY = joystick.baseY;
+        }
+    }
+
+    function joystickDirFromPoint(px, py) {
+        let dx = px - joystick.baseX;
+        let dy = py - joystick.baseY;
+        const dist = Math.hypot(dx, dy);
+        const maxDist = joystick.baseRadius;
+        if (dist < 6) {
+            joystick.dirX = 0; joystick.dirY = 0;
+            joystick.knobX = joystick.baseX; joystick.knobY = joystick.baseY;
+            return;
+        }
+        const clampedDist = Math.min(dist, maxDist);
+        const nx = dx / dist, ny = dy / dist;
+        joystick.knobX = joystick.baseX + nx * clampedDist;
+        joystick.knobY = joystick.baseY + ny * clampedDist;
+        const mag = Math.min(dist / maxDist, 1);
+        joystick.dirX = nx * mag;
+        joystick.dirY = ny * mag;
+    }
+
+    function resetJoystick() {
+        joystick.active = false;
+        joystick.touchId = null;
+        joystick.dirX = 0; joystick.dirY = 0;
+        joystick.knobX = joystick.baseX;
+        joystick.knobY = joystick.baseY;
+    }
+
+    // ============ КАРТЫ ============
+    // Карты задаются программно, без текстовых шаблонов.
+    // 1 = стена, 0 = проход. Отдельно храним координаты старта, выхода и врагов.
+
+    // -------- ЛАБИРИНТ "ЛОЖЬ" (папа с ремнём) с большим залом --------
+    // Размер: 25 колонок x 19 строк
+    // Спиральная структура в левой части, большой зал в правой нижней части.
+    function buildLieMap() {
+        MAZE_COLS = 25;
+        MAZE_ROWS = 19;
+        worldMap = [];
+        for (let r = 0; r < MAZE_ROWS; r++) {
+            const row = new Array(MAZE_COLS).fill(0);
+            worldMap.push(row);
+        }
+
+        // Внешние стены
+        for (let c = 0; c < MAZE_COLS; c++) {
+            worldMap[0][c] = 1;
+            worldMap[MAZE_ROWS-1][c] = 1;
+        }
+        for (let r = 0; r < MAZE_ROWS; r++) {
+            worldMap[r][0] = 1;
+            worldMap[r][MAZE_COLS-1] = 1;
+        }
+
+        // ---- Спиральные стены слева (без тупиков, длинные коридоры) ----
+        // Горизонтальные стены-перегородки с проходами
+        // Верхние 4 кольца — спираль
+        const hWalls = [
+            // r, cStart, cEnd
+            [1, 2, 15],
+            [3, 2, 13],
+            [5, 3, 13],
+            [7, 2, 13],
+            [9, 2, 13],
+            [11, 3, 13],
+            [13, 2, 15],
+        ];
+        for (const [r, c0, c1] of hWalls) {
+            for (let c = c0; c <= c1; c++) worldMap[r][c] = 1;
+        }
+        // Проходы в горизонтальных стенах — сдвигаем по одной клетке, чтобы получилась спираль
+        worldMap[1][14] = 0;   // проход сверху
+        worldMap[3][3] = 0;    // проход
+        worldMap[5][12] = 0;   // проход
+        worldMap[7][3] = 0;
+        worldMap[9][12] = 0;
+        worldMap[11][3] = 0;
+        worldMap[13][14] = 0;
+
+        // Вертикальные стены — с проходами
+        const vWalls = [
+            // c, rStart, rEnd
+            [3, 2, 3],
+            [13, 2, 3],
+            [3, 5, 6],
+            [13, 4, 6],
+            [3, 8, 9],
+            [13, 7, 9],
+            [3, 11, 12],
+            [13, 10, 12],
+            [3, 14, 16],
+            [13, 13, 16],
+        ];
+        for (const [c, r0, r1] of vWalls) {
+            for (let r = r0; r <= r1; r++) worldMap[r][c] = 1;
+        }
+        // Проходы в вертикальных стенах
+        worldMap[2][3] = 0;    // верхний проход
+        worldMap[2][13] = 0;
+        worldMap[4][13] = 0;
+        worldMap[7][13] = 0;
+        worldMap[10][13] = 0;
+        worldMap[15][3] = 0;
+        worldMap[15][13] = 0;
+
+        // ---- БОЛЬШОЙ ЗАЛ ----
+        // Зал занимает колонки 16..23, строки 10..17
+        hall.tileX0 = 16;
+        hall.tileY0 = 10;
+        hall.tileX1 = 23;
+        hall.tileY1 = 17;
+        hall.x = hall.tileX0 * TILE;
+        hall.y = hall.tileY0 * TILE;
+        hall.w = (hall.tileX1 - hall.tileX0 + 1) * TILE;
+        hall.h = (hall.tileY1 - hall.tileY0 + 1) * TILE;
+
+        // Стены зала — только по периметру
+        for (let c = hall.tileX0 - 1; c <= hall.tileX1 + 1; c++) {
+            if (c < 0 || c >= MAZE_COLS) continue;
+            if (hall.tileY0 - 1 >= 0) worldMap[hall.tileY0 - 1][c] = 1;
+            if (hall.tileY1 + 1 < MAZE_ROWS) worldMap[hall.tileY1 + 1][c] = 1;
+        }
+        for (let r = hall.tileY0 - 1; r <= hall.tileY1 + 1; r++) {
+            if (r < 0 || r >= MAZE_ROWS) continue;
+            if (hall.tileX0 - 1 >= 0) worldMap[r][hall.tileX0 - 1] = 1;
+            if (hall.tileX1 + 1 < MAZE_COLS) worldMap[r][hall.tileX1 + 1] = 1;
+        }
+        // Внутренность зала — свободна
+        for (let r = hall.tileY0; r <= hall.tileY1; r++) {
+            for (let c = hall.tileX0; c <= hall.tileX1; c++) {
+                worldMap[r][c] = 0;
+            }
+        }
+        // Проход из лабиринта в зал — сверху слева зала
+        worldMap[hall.tileY0 - 1][hall.tileX0] = 0;
+
+        // Старт игрока — верхний левый угол
+        const startPos = { x: 1 * TILE + TILE/2, y: 1 * TILE + TILE/2 };
+
+        // Выход — правый нижний угол зала
+        const exitPos = {
+            x: (hall.tileX1) * TILE + TILE/2,
+            y: (hall.tileY1) * TILE + TILE/2
+        };
+
+        // Мама-охранница — в центре зала
+        const momPos = {
+            x: ((hall.tileX0 + hall.tileX1) / 2) * TILE + TILE/2,
+            y: ((hall.tileY0 + hall.tileY1) / 2) * TILE + TILE/2
+        };
+
+        return { startPos, exitPos, momPos };
+    }
+
+    // -------- ТЁМНОЕ ПОМЕЩЕНИЕ "ПРАВДА" (скибиди) --------
+    // Спиральная структура, без тупиков, тоже с большим залом у выхода.
+    function buildTruthMap() {
+        MAZE_COLS = 25;
+        MAZE_ROWS = 19;
+        worldMap = [];
+        for (let r = 0; r < MAZE_ROWS; r++) {
+            const row = new Array(MAZE_COLS).fill(0);
+            worldMap.push(row);
+        }
+
+        // Внешние стены
+        for (let c = 0; c < MAZE_COLS; c++) {
+            worldMap[0][c] = 1;
+            worldMap[MAZE_ROWS-1][c] = 1;
+        }
+        for (let r = 0; r < MAZE_ROWS; r++) {
+            worldMap[r][0] = 1;
+            worldMap[r][MAZE_COLS-1] = 1;
+        }
+
+        // Спиральные перегородки — похоже на "ложь", но с другими проходами
+        const hWalls = [
+            [2, 2, 20],
+            [4, 2, 18],
+            [6, 4, 20],
+            [8, 2, 18],
+            [10, 2, 20],
+            [12, 4, 18],
+            [14, 2, 20],
+        ];
+        for (const [r, c0, c1] of hWalls) {
+            for (let c = c0; c <= c1; c++) worldMap[r][c] = 1;
+        }
+        // Проходы
+        worldMap[2][19] = 0;
+        worldMap[4][3] = 0;
+        worldMap[6][19] = 0;
+        worldMap[8][3] = 0;
+        worldMap[10][19] = 0;
+        worldMap[12][3] = 0;
+        worldMap[14][19] = 0;
+
+        const vWalls = [
+            [4, 3, 4],
+            [18, 3, 4],
+            [4, 7, 8],
+            [18, 7, 8],
+            [4, 11, 12],
+            [18, 11, 12],
+            [4, 15, 16],
+            [18, 15, 16],
+        ];
+        for (const [c, r0, r1] of vWalls) {
+            for (let r = r0; r <= r1; r++) worldMap[r][c] = 1;
+        }
+        worldMap[3][4] = 0;
+        worldMap[3][18] = 0;
+        worldMap[9][4] = 0;
+        worldMap[9][18] = 0;
+        worldMap[15][4] = 0;
+        worldMap[15][18] = 0;
+
+        // Большой зал — как в "лжи", но с другим проходом
+        hall.tileX0 = 16;
+        hall.tileY0 = 10;
+        hall.tileX1 = 23;
+        hall.tileY1 = 17;
+        hall.x = hall.tileX0 * TILE;
+        hall.y = hall.tileY0 * TILE;
+        hall.w = (hall.tileX1 - hall.tileX0 + 1) * TILE;
+        hall.h = (hall.tileY1 - hall.tileY0 + 1) * TILE;
+
+        for (let c = hall.tileX0 - 1; c <= hall.tileX1 + 1; c++) {
+            if (c < 0 || c >= MAZE_COLS) continue;
+            if (hall.tileY0 - 1 >= 0) worldMap[hall.tileY0 - 1][c] = 1;
+            if (hall.tileY1 + 1 < MAZE_ROWS) worldMap[hall.tileY1 + 1][c] = 1;
+        }
+        for (let r = hall.tileY0 - 1; r <= hall.tileY1 + 1; r++) {
+            if (r < 0 || r >= MAZE_ROWS) continue;
+            if (hall.tileX0 - 1 >= 0) worldMap[r][hall.tileX0 - 1] = 1;
+            if (hall.tileX1 + 1 < MAZE_COLS) worldMap[r][hall.tileX1 + 1] = 1;
+        }
+        for (let r = hall.tileY0; r <= hall.tileY1; r++) {
+            for (let c = hall.tileX0; c <= hall.tileX1; c++) {
+                worldMap[r][c] = 0;
+            }
+        }
+        // Проход в зал — снизу слева зала
+        worldMap[hall.tileY1 + 1][hall.tileX0 + 1] = 0;
+
+        const startPos = { x: 1 * TILE + TILE/2, y: 1 * TILE + TILE/2 };
+        const exitPos = {
+            x: hall.tileX1 * TILE + TILE/2,
+            y: hall.tileY1 * TILE + TILE/2
+        };
+
+        return { startPos, exitPos };
+    }
+
+    // ============ РАЗМЕРЫ ============
+    function resize() {
+        const rect = document.getElementById('game-container').getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+
+        viewW = rect.width;
+        viewH = rect.height;
+        canvas.width = viewW * dpr;
+        canvas.height = viewH * dpr;
+        canvas.style.width = viewW + 'px';
+        canvas.style.height = viewH + 'px';
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        WORLD_W = MAZE_COLS * TILE;
+        WORLD_H = MAZE_ROWS * TILE;
+
+        const sx = viewW / WORLD_W;
+        const sy = viewH / WORLD_H;
+        scale = Math.min(sx, sy);
+        offsetX = (viewW - WORLD_W * scale) / 2;
+        offsetY = (viewH - WORLD_H * scale) / 2;
+
+        updateJoystickLayout();
+    }
+
+    window.addEventListener('resize', () => { resize(); });
+    window.addEventListener('orientationchange', () => { setTimeout(resize, 250); });
+
+    // ============ КОЛЛИЗИИ ============
+    function getTile(cx, cy) {
+        const c = Math.floor(cx / TILE);
+        const r = Math.floor(cy / TILE);
+        if (r < 0 || r >= MAZE_ROWS || c < 0 || c >= MAZE_COLS) return 1;
+        return worldMap[r][c];
+    }
+
+    function isSolid(cx, cy) {
+        return getTile(cx, cy) === 1;
+    }
+
+    function circleSolidCollision(x, y, radius) {
+        const points = 8;
+        for (let i = 0; i < points; i++) {
+            const a = (i / points) * Math.PI * 2;
+            const px = x + Math.cos(a) * radius;
+            const py = y + Math.sin(a) * radius;
+            if (isSolid(px, py)) return true;
+        }
+        return false;
+    }
+
+    function moveWithCollision(ent, dx, dy, radius) {
+        let nx = ent.x + dx;
+        if (!circleSolidCollision(nx, ent.y, radius)) ent.x = nx;
+        let ny = ent.y + dy;
+        if (!circleSolidCollision(ent.x, ny, radius)) ent.y = ny;
+    }
+
+    function bfsPath(startCx, startCy, targetCx, targetCy) {
+        if (startCx === targetCx && startCy === targetCy) return [];
+        const key = (c, r) => r * MAZE_COLS + c;
+        const visited = new Uint8Array(MAZE_COLS * MAZE_ROWS);
+        const parent = new Map();
+        const queue = [{ c: startCx, r: startCy }];
+        visited[key(startCx, startCy)] = 1;
+        const dirs = [ [1,0], [-1,0], [0,1], [0,-1] ];
+        let found = false;
+        while (queue.length) {
+            const cur = queue.shift();
+            if (cur.c === targetCx && cur.r === targetCy) { found = true; break; }
+            for (const [dx, dy] of dirs) {
+                const nc = cur.c + dx, nr = cur.r + dy;
+                if (nc < 0 || nc >= MAZE_COLS || nr < 0 || nr >= MAZE_ROWS) continue;
+                if (worldMap[nr][nc] === 1) continue;
+                if (visited[key(nc, nr)]) continue;
+                visited[key(nc, nr)] = 1;
+                parent.set(key(nc, nr), { c: cur.c, r: cur.r });
+                queue.push({ c: nc, r: nr });
+            }
+        }
+        if (!found) return null;
+        const path = [];
+        let cur = { c: targetCx, r: targetCy };
+        while (!(cur.c === startCx && cur.r === startCy)) {
+            path.push(cur);
+            const p = parent.get(key(cur.c, cur.r));
+            if (!p) break;
+            cur = p;
+        }
+        path.reverse();
+        return path;
+    }
+
+    // ============ ВРАГИ ============
+    function createDad() {
+        dad = {
+            x: player.x,
+            y: player.y + TILE * 1.2,
+            r: ENEMY_RADIUS,
+            speed: 3.2,
+            frozen: true,
+            stuckTimer: 0,
+            recalcTimer: 0,
+            dir: { x: 0, y: 0 }
+        };
+    }
+
+    function createMomGuard(x, y) {
+        momGuard = {
+            x: x, y: y,
+            r: ENEMY_RADIUS + 2,
+            speed: 1.6,
+            frozen: true,
+            stuckTimer: 0,
+            recalcTimer: 0,
+            dir: { x: 0, y: 0 }
+        };
+    }
+
+    function createSkibidis(count) {
+        skibidis = [];
+        const positions = [];
+        for (let i = 0; i < count; i++) {
+            let attempts = 200;
+            while (attempts > 0) {
+                const c = 2 + Math.floor(Math.random() * (MAZE_COLS - 4));
+                const r = 2 + Math.floor(Math.random() * (MAZE_ROWS - 4));
+                if (worldMap[r][c] === 0) {
+                    const cx = c * TILE + TILE/2;
+                    const cy = r * TILE + TILE/2;
+                    const nearStart = Math.hypot(cx - player.x, cy - player.y) < TILE * 5;
+                    const nearOthers = positions.some(p => Math.hypot(p.x - cx, p.y - cy) < TILE * 3);
+                    // Не в зале
+                    const inHall = c >= hall.tileX0 && c <= hall.tileX1 && r >= hall.tileY0 && r <= hall.tileY1;
+                    if (!nearStart && !nearOthers && !inHall) {
+                        positions.push({ x: cx, y: cy });
+                        break;
+                    }
+                }
+                attempts--;
+            }
+        }
+        for (const p of positions) {
+            skibidis.push({
+                x: p.x, y: p.y,
+                r: ENEMY_RADIUS,
+                speed: 0.9,
+                frozen: true,
+                stuckTimer: 0,
+                recalcTimer: 0,
+                dir: { x: 0, y: 0 },
+                bob: Math.random() * Math.PI * 2
+            });
+        }
+    }
+
+    function updateBFSEntity(e, dt, target, speedMult) {
+        e.recalcTimer -= dt;
+        if (e.recalcTimer <= 0) {
+            e.recalcTimer = 0.35;
+            const ecx = Math.floor(e.x / TILE);
+            const ecy = Math.floor(e.y / TILE);
+            const pcx = Math.floor(target.x / TILE);
+            const pcy = Math.floor(target.y / TILE);
+            const path = bfsPath(ecx, ecy, pcx, pcy);
+            if (path && path.length > 0) {
+                let tx, ty;
+                if (path.length === 1) { tx = target.x; ty = target.y; }
+                else { tx = path[0].c * TILE + TILE/2; ty = path[0].r * TILE + TILE/2; }
+                const dx = tx - e.x;
+                const dy = ty - e.y;
+                const d = Math.hypot(dx, dy) || 1;
+                e.dir = { x: dx / d, y: dy / d };
+            }
+        }
+        const sp = e.speed * speedMult * dt * 60;
+        const moveX = e.dir.x * sp;
+        const moveY = e.dir.y * sp;
+        const oldX = e.x, oldY = e.y;
+        moveWithCollision(e, moveX, moveY, e.r);
+        if (Math.abs(e.x - oldX) < 0.05 && Math.abs(e.y - oldY) < 0.05) {
+            e.stuckTimer += dt;
+            if (e.stuckTimer > 0.15) {
+                e.recalcTimer = 0;
+                const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+                for (const [dx, dy] of dirs) {
+                    const tx = e.x + dx * 5;
+                    const ty = e.y + dy * 5;
+                    if (!circleSolidCollision(tx, ty, e.r)) {
+                        e.x = tx; e.y = ty;
+                        break;
+                    }
+                }
+                e.stuckTimer = 0;
+            }
+        } else {
+            e.stuckTimer = 0;
+        }
+    }
+
+    // ============ ЭНЕРГЕТИКИ ============
+    function spawnEnergyDrinks() {
+        energyDrinks = [];
+        let placed = 0;
+        let attempts = 200;
+        while (placed < 7 && attempts > 0) {
+            attempts--;
+            const c = 1 + Math.floor(Math.random() * (MAZE_COLS - 2));
+            const r = 1 + Math.floor(Math.random() * (MAZE_ROWS - 2));
+            if (worldMap[r][c] === 0) {
+                const cx = c * TILE + TILE/2;
+                const cy = r * TILE + TILE/2;
+                const nearPlayer = Math.hypot(cx - player.x, cy - player.y) < TILE * 2;
+                const nearGoal = Math.hypot(cx - goalExit.x, cy - goalExit.y) < TILE * 2;
+                const nearCoin = energyDrinks.some(e => Math.hypot(e.x - cx, e.y - cy) < TILE);
+                if (!nearPlayer && !nearGoal && !nearCoin) {
+                    energyDrinks.push({ x: cx, y: cy, r: 14, bobPhase: Math.random() * Math.PI * 2 });
+                    placed++;
+                }
+            }
+        }
+    }
+
+    // ============ ИГРОК ============
+    function updatePlayer(dt) {
+        let dx = 0, dy = 0;
+        if (keys.left) dx -= 1;
+        if (keys.right) dx += 1;
+        if (keys.up) dy -= 1;
+        if (keys.down) dy += 1;
+
+        if (joystick.dirX !== 0 || joystick.dirY !== 0) {
+            dx = joystick.dirX;
+            dy = joystick.dirY;
+        }
+
+        const len = Math.hypot(dx, dy);
+        if (len > 1) { dx /= len; dy /= len; }
+
+        const baseSpeed = player.boostTime > 0 ? PLAYER_SPEED_BOOSTED : PLAYER_SPEED;
+        const sp = baseSpeed * dt * 60;
+        moveWithCollision(player, dx * sp, dy * sp, PLAYER_RADIUS);
+
+        if (player.boostTime > 0) {
+            player.boostTime -= dt;
+            if (player.boostTime < 0) player.boostTime = 0;
+        }
+        updateBoostHud();
+    }
+
+    function updateBoostHud() {
+        if (player.boostTime > 0) {
+            boostHud.classList.add('show');
+            boostHud.textContent = `⚡ ЭНЕРГЕТИК: ${player.boostTime.toFixed(1)}с`;
+            speedHud.textContent = `👟 Скорость: УСКОРЕНИЕ`;
+        } else {
+            boostHud.classList.remove('show');
+            speedHud.textContent = `👟 Скорость: обычная`;
+        }
+    }
+
+    function updateGraceHud() {
+        if (graceTime > 0) {
+            const sec = Math.ceil(graceTime);
+            graceHud.classList.add('show');
+            graceHud.textContent = sec;
+            graceBanner.classList.add('show');
+            graceSeconds.textContent = sec;
+        } else {
+            graceHud.classList.remove('show');
+            graceBanner.classList.remove('show');
+        }
+    }
+
+    // ============ СБРОС / СЦЕНАРИИ ============
+    function resetGame() {
+        player.boostTime = 0;
+        dad = null;
+        momGuard = null;
+        skibidis = [];
+        energyDrinks = [];
+        goalExit.reached = false;
+        scenario = null;
+        hallHint.classList.remove('show');
+        updateDangerHud();
+    }
+
+    function setupLieScenario() {
+        scenario = 'lie';
+        const ents = buildLieMap();
+        resize();
+
+        player.x = ents.startPos.x;
+        player.y = ents.startPos.y;
+
+        goalExit.x = ents.exitPos.x;
+        goalExit.y = ents.exitPos.y;
+        goalExit.r = 24;
+        goalExit.reached = false;
+
+        createDad();
+        createMomGuard(ents.momPos.x, ents.momPos.y);
+        spawnEnergyDrinks();
+
+        timeLeft = GAME_DURATION;
+        updateTimerUI();
+        updateBoostHud();
+        updateGraceHud();
+        resetJoystick();
+    }
+
+    function setupTruthScenario() {
+        scenario = 'truth';
+        const ents = buildTruthMap();
+        resize();
+
+        player.x = ents.startPos.x;
+        player.y = ents.startPos.y;
+
+        goalExit.x = ents.exitPos.x;
+        goalExit.y = ents.exitPos.y;
+        goalExit.r = 24;
+        goalExit.reached = false;
+
+        createSkibidis(4);
+        spawnEnergyDrinks();
+
+        timeLeft = GAME_DURATION;
+        updateTimerUI();
+        updateBoostHud();
+        updateGraceHud();
+        resetJoystick();
+    }
+
+    function updateDangerHud() {
+        if (scenario === 'lie') dangerHud.textContent = '🚨 ПАПА С РЕМНЁМ РЯДОМ!';
+        else if (scenario === 'truth') dangerHud.textContent = '🚽 СКИБИДИ РЯДОМ!';
+        else dangerHud.textContent = '🚨 ОПАСНОСТЬ!';
+    }
+
+    function updateTimerUI() {
+        const pct = (timeLeft / GAME_DURATION) * 100;
+        timerFill.style.width = pct + '%';
+        const mins = Math.floor(timeLeft / 60);
+        const secs = Math.floor(timeLeft % 60);
+        timerText.textContent = `${mins}:${secs.toString().padStart(2,'0')}`;
+    }
+
+    function showScreen(screen) {
+        startScreen.classList.add('hidden');
+        deathScreen.classList.add('hidden');
+        winScreen.classList.add('hidden');
+        if (screen === 'start') startScreen.classList.remove('hidden');
+        if (screen === 'death') deathScreen.classList.remove('hidden');
+        if (screen === 'win') winScreen.classList.remove('hidden');
+    }
+
+    function die(reason, title) {
+        if (gameState !== 'playing') return;
+        gameState = 'dead';
+        deathReason.textContent = reason;
+        if (title) deathTitle.textContent = title;
+        showScreen('death');
+        if (animationId) cancelAnimationFrame(animationId);
+    }
+
+    function win(title, reason) {
+        if (gameState !== 'playing') return;
+        gameState = 'win';
+        winTitle.textContent = title || 'Ты выбрался!';
+        winReason.textContent = reason || 'Ты спасся!';
+        showScreen('win');
+        if (animationId) cancelAnimationFrame(animationId);
+    }
+
+    function triggerSpank() {
+        gameState = 'spanked';
+        spankOverlay.classList.add('show');
+        if (animationId) cancelAnimationFrame(animationId);
+    }
+
+    // ============ ДИАЛОГИ ============
+    let dialogueQueue = [], dialogueIndex = 0, dialogueActive = false, dialogueOnComplete = null;
+
+    function startDialogue(lines, onComplete) {
+        dialogueQueue = lines;
+        dialogueIndex = 0;
+        dialogueActive = true;
+        dialogueOnComplete = onComplete;
+        dialogueBox.classList.add('show');
+        showDialogueLine();
+    }
+
+    function showDialogueLine() {
+        if (dialogueIndex >= dialogueQueue.length) {
+            endDialogue();
+            return;
+        }
+        const line = dialogueQueue[dialogueIndex];
+        dialogueSpeaker.textContent = line.speaker;
+        dialogueSpeaker.style.color = line.color || '#ffd166';
+        dialogueText.textContent = line.text;
+        dialogueHint.textContent = 'Нажми, чтобы продолжить ▶';
+    }
+
+    function advanceDialogue() {
+        if (!dialogueActive) return;
+        dialogueIndex++;
+        if (dialogueIndex >= dialogueQueue.length) endDialogue();
+        else showDialogueLine();
+    }
+
+    function endDialogue() {
+        dialogueActive = false;
+        dialogueBox.classList.remove('show');
+        const cb = dialogueOnComplete;
+        dialogueOnComplete = null;
+        if (cb) cb();
+    }
+
+    dialogueBox.addEventListener('click', (e) => { e.stopPropagation(); advanceDialogue(); });
+    dialogueBox.addEventListener('touchstart', (e) => { e.stopPropagation(); e.preventDefault(); advanceDialogue(); }, { passive: false });
+
+    // ============ ВЫБОР ============
+    function showChoice() {
+        gameState = 'choice';
+        choiceBackdrop.classList.add('show');
+        choiceBox.classList.add('show');
+    }
+    function hideChoice() {
+        choiceBackdrop.classList.remove('show');
+        choiceBox.classList.remove('show');
+    }
+
+    choiceLie.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (gameState !== 'choice') return;
+        hideChoice();
+        startDialogue([
+            { speaker: 'Мама 👩', color: '#e84393', text: 'ПЯТЁРКА?! УМНИЦА МОЙ!' },
+            { speaker: 'Мама 👩', color: '#e84393', text: 'Я так тобой горжусь, сынок!' },
+            { speaker: 'Папа 👨', color: '#3498db', text: 'Погоди-ка... А ОТКУДА У ТЕБЯ СОСИСКА?' },
+            { speaker: 'Папа 👨', color: '#3498db', text: 'У ТЕБЯ ЖЕ НЕТ ДЕНЕГ!' },
+            { speaker: 'Папа 👨', color: '#e74c3c', text: 'УКРАЛ, ЗНАЧИТ...' },
+            { speaker: 'Папа 👨', color: '#e74c3c', text: 'НУ ВСЁ! ТЕБЕ КОНЕЦ!' },
+            { speaker: 'Ты 🏃', color: '#4a90d9', text: 'Ой-ой-ой! Надо бежать!' }
+        ], () => {
+            setupLieScenario();
+            gameState = 'playing';
+            graceTime = GRACE_PERIOD;
+            updateGraceHud();
+            lastTimestamp = performance.now();
+            if (animationId) cancelAnimationFrame(animationId);
+            animationId = requestAnimationFrame(gameLoop);
+        });
+    });
+
+    choiceTruth.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (gameState !== 'choice') return;
+        hideChoice();
+        startDialogue([
+            { speaker: 'Ты 🏃', color: '#4a90d9', text: 'Я СБЕЖАЛ ИЗ ШКОЛЫ И УКРАЛ СОСИСКУ В ТЕСТЕ.' },
+            { speaker: 'Мама 👩', color: '#e84393', text: 'НУ ХОРОШО...' },
+            { speaker: 'Папа 👨', color: '#3498db', text: 'НУ ХОРОШО...' },
+            { speaker: 'Мама 👩', color: '#e84393', text: 'Но наказание всё равно будет. Иди в свою комнату.' },
+            { speaker: '???', color: '#7d3c98', text: '...' },
+            { speaker: 'Скибиди 🚽', color: '#7d3c98', text: 'SKIBIDI DOP DOP YES YES!' }
+        ], () => {
+            setupTruthScenario();
+            gameState = 'playing';
+            graceTime = GRACE_PERIOD;
+            updateGraceHud();
+            lastTimestamp = performance.now();
+            if (animationId) cancelAnimationFrame(animationId);
+            animationId = requestAnimationFrame(gameLoop);
+        });
+    });
+
+    // ============ СТАРТ ============
+    function beginGame() {
+        resetGame();
+        showScreen(null);
+        spankOverlay.classList.remove('show');
+        gameState = 'intro';
+
+        startDialogue([
+            { speaker: 'Мама 👩', color: '#e84393', text: 'СЫНОК! ТЫ ГДЕ БЫЛ?!' },
+            { speaker: 'Мама 👩', color: '#e84393', text: 'Мы так переживали! Уже весь город обзвонили!' },
+            { speaker: 'Папа 👨', color: '#3498db', text: 'ГДЕ ТЫ БЫЛ, МОЛОДОЙ ЧЕЛОВЕК?' },
+            { speaker: 'Папа 👨', color: '#3498db', text: 'Отвечай честно!' }
+        ], () => {
+            showChoice();
+        });
+    }
+
+    // ============ ИГРОВОЙ ЦИКЛ ============
+    function gameLoop(timestamp) {
+        if (gameState !== 'playing') return;
+        const dt = Math.min((timestamp - lastTimestamp) / 1000, 0.05);
+        lastTimestamp = timestamp;
+        update(dt);
+        render();
+        animationId = requestAnimationFrame(gameLoop);
+    }
+
+    function update(dt) {
+        timeLeft -= dt;
+        if (timeLeft <= 0) {
+            timeLeft = 0;
+            updateTimerUI();
+            if (scenario === 'lie') die('Папа всё-таки догнал тебя. Тебе конец!', 'Пойман!');
+            else die('Скибиди догнали тебя. SKIBIDI DOP DOP...', 'Пойман!');
+            return;
+        }
+        updateTimerUI();
+
+        updatePlayer(dt);
+
+        if (graceTime > 0) {
+            graceTime -= dt;
+            if (graceTime <= 0) {
+                graceTime = 0;
+                if (dad) dad.frozen = false;
+                if (momGuard) momGuard.frozen = false;
+                for (const s of skibidis) s.frozen = false;
+            }
+            updateGraceHud();
+        }
+
+        // Подсказка про зал — если игрок рядом с залом
+        const inHallZone = player.x > (hall.tileX0 - 3) * TILE && player.y > (hall.tileY0 - 3) * TILE;
+        if (scenario === 'lie' && inHallZone && !goalExit.reached) hallHint.classList.add('show');
+        else if (scenario === 'truth' && inHallZone && !goalExit.reached) hallHint.classList.add('show');
+        else hallHint.classList.remove('show');
+
+        if (scenario === 'lie') {
+            if (dad && !dad.frozen) updateBFSEntity(dad, dt, player, 1.0);
+            if (momGuard && !momGuard.frozen) {
+                const distToPlayer = Math.hypot(momGuard.x - player.x, momGuard.y - player.y);
+                if (distToPlayer < 320) updateBFSEntity(momGuard, dt, player, 1.0);
+            }
+            if (dad && !dad.frozen) {
+                const d = Math.hypot(dad.x - player.x, dad.y - player.y);
+                if (d < PLAYER_RADIUS + dad.r) {
+                    die('Папа схватил тебя! Сейчас будет ремень...', 'Пойман!');
+                    return;
+                }
+                if (d < 180) dangerHud.classList.add('show');
+                else dangerHud.classList.remove('show');
+            }
+            if (momGuard && !momGuard.frozen) {
+                const d = Math.hypot(momGuard.x - player.x, momGuard.y - player.y);
+                if (d < PLAYER_RADIUS + momGuard.r) {
+                    triggerSpank();
+                    return;
+                }
+            }
+        }
+
+        if (scenario === 'truth') {
+            let closestDist = Infinity;
+            for (const s of skibidis) {
+                if (s.frozen) continue;
+                updateBFSEntity(s, dt, player, 1.0);
+                const d = Math.hypot(s.x - player.x, s.y - player.y);
+                if (d < closestDist) closestDist = d;
+                if (d < PLAYER_RADIUS + s.r) {
+                    die('Скибиди туалет догнал тебя. SKIBIDI DOP DOP YES YES...', 'Пойман скибиди!');
+                    return;
+                }
+            }
+            if (closestDist < 180) dangerHud.classList.add('show');
+            else dangerHud.classList.remove('show');
+        }
+
+        for (let i = energyDrinks.length - 1; i >= 0; i--) {
+            const ed = energyDrinks[i];
+            if (Math.hypot(player.x - ed.x, player.y - ed.y) < PLAYER_RADIUS + ed.r) {
+                player.boostTime = BOOST_DURATION;
+                energyDrinks.splice(i, 1);
+                updateBoostHud();
+            }
+        }
+
+        if (!goalExit.reached) {
+            const d = Math.hypot(player.x - goalExit.x, player.y - goalExit.y);
+            if (d < PLAYER_RADIUS + goalExit.r) {
+                goalExit.reached = true;
+                if (scenario === 'lie') {
+                    win('Ты выбрался!', 'Ты проскочил мимо мамы и выбежал из квартиры. Ремень не догнал!');
+                } else {
+                    win('Ты вышел!', 'Ты выбрался из тёмного помещения через зал. Скибиди остались позади!');
+                }
+            }
+        }
+    }
+
+    // ============ ОТРИСОВКА ============
+    function render() {
+        ctx.clearRect(0, 0, viewW, viewH);
+        const isDark = scenario === 'truth';
+        ctx.fillStyle = isDark ? '#000000' : '#0a0a14';
+        ctx.fillRect(0, 0, viewW, viewH);
+
+        const targetCamX = player.x * scale - viewW / 2;
+        const targetCamY = player.y * scale - viewH / 2;
+        const maxCamX = Math.max(0, WORLD_W * scale - viewW);
+        const maxCamY = Math.max(0, WORLD_H * scale - viewH);
+        let camX = Math.max(0, Math.min(maxCamX, targetCamX));
+        let camY = Math.max(0, Math.min(maxCamY, targetCamY));
+
+        let offX = offsetX;
+        let offY = offsetY;
+        if (WORLD_W * scale < viewW) { camX = 0; offX = (viewW - WORLD_W * scale) / 2; }
+        if (WORLD_H * scale < viewH) { camY = 0; offY = (viewH - WORLD_H * scale) / 2; }
+
+        ctx.save();
+        ctx.translate(-camX + offX, -camY + offY);
+        ctx.scale(scale, scale);
+
+        // Отрисовка клеток
+        for (let r = 0; r < MAZE_ROWS; r++) {
+            for (let c = 0; c < MAZE_COLS; c++) {
+                const x = c * TILE, y = r * TILE;
+                const inHall = c >= hall.tileX0 && c <= hall.tileX1 && r >= hall.tileY0 && r <= hall.tileY1;
+
+                if (worldMap[r][c] === 1) {
+                    if (isDark) {
+                        ctx.fillStyle = '#1a0a2a';
+                        ctx.fillRect(x, y, TILE, TILE);
+                        ctx.strokeStyle = '#3a1a5a';
+                        ctx.lineWidth = 1;
+                        ctx.strokeRect(x + 1, y + 1, TILE - 2, TILE - 2);
+                    } else {
+                        const grad = ctx.createLinearGradient(x, y, x, y+TILE);
+                        grad.addColorStop(0, '#8b6f47');
+                        grad.addColorStop(1, '#6b4f2f');
+                        ctx.fillStyle = grad;
+                        ctx.fillRect(x, y, TILE, TILE);
+                        ctx.strokeStyle = '#3a2510';
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(x + 1, y + 1, TILE - 2, TILE - 2);
+                        ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.moveTo(x + TILE/2, y);
+                        ctx.lineTo(x + TILE/2, y + TILE);
+                        ctx.stroke();
+                    }
+                } else if (inHall) {
+                    // Пол большого зала — мрамор
+                    if (isDark) {
+                        ctx.fillStyle = ((r + c) % 2 === 0) ? '#2a1a4a' : '#241642';
+                        ctx.fillRect(x, y, TILE, TILE);
+                        ctx.strokeStyle = 'rgba(120,80,200,0.25)';
+                        ctx.lineWidth = 1;
+                        ctx.strokeRect(x + 1, y + 1, TILE - 2, TILE - 2);
+                    } else {
+                        const grad = ctx.createLinearGradient(x, y, x + TILE, y + TILE);
+                        grad.addColorStop(0, ((r + c) % 2 === 0) ? '#e8dcc0' : '#d8cba8');
+                        grad.addColorStop(1, ((r + c) % 2 === 0) ? '#d8cba8' : '#c8bb98');
+                        ctx.fillStyle = grad;
+                        ctx.fillRect(x, y, TILE, TILE);
+                        ctx.strokeStyle = 'rgba(120,90,50,0.35)';
+                        ctx.lineWidth = 1;
+                        ctx.strokeRect(x + 1, y + 1, TILE - 2, TILE - 2);
+                        // Узор на плитке
+                        ctx.fillStyle = 'rgba(180,140,80,0.15)';
+                        ctx.beginPath();
+                        ctx.arc(x + TILE/2, y + TILE/2, 4, 0, Math.PI*2);
+                        ctx.fill();
+                    }
+                } else {
+                    if (isDark) {
+                        ctx.fillStyle = ((r + c) % 2 === 0) ? '#150a20' : '#1a0f28';
+                        ctx.fillRect(x, y, TILE, TILE);
+                    } else {
+                        const isParquet = (Math.floor(c/2) + Math.floor(r/2)) % 2 === 0;
+                        ctx.fillStyle = isParquet ? '#b08858' : '#9e7848';
+                        ctx.fillRect(x, y, TILE, TILE);
+                        ctx.strokeStyle = 'rgba(60,30,10,0.4)';
+                        ctx.lineWidth = 1;
+                        ctx.strokeRect(x, y, TILE, TILE);
+                        ctx.strokeStyle = 'rgba(60,30,10,0.2)';
+                        ctx.beginPath();
+                        ctx.moveTo(x, y + TILE/2);
+                        ctx.lineTo(x + TILE, y + TILE/2);
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+
+        // Рамка зала — золотая
+        const hallPulse = 0.4 + Math.sin(performance.now() / 400) * 0.25;
+        ctx.strokeStyle = scenario === 'lie'
+            ? `rgba(255,209,102,${hallPulse})`
+            : `rgba(120,80,200,${hallPulse})`;
+        ctx.lineWidth = 4;
+        ctx.strokeRect(hall.x - 2, hall.y - 2, hall.w + 4, hall.h + 4);
+
+        // Подпись "БОЛЬШОЙ ЗАЛ"
+        ctx.fillStyle = 'rgba(0,0,0,0.65)';
+        ctx.fillRect(hall.x + hall.w/2 - 80, hall.y + 8, 160, 24);
+        ctx.fillStyle = scenario === 'lie' ? '#ffd166' : '#c8a8ff';
+        ctx.font = 'bold 14px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('🏛️ БОЛЬШОЙ ЗАЛ', hall.x + hall.w/2, hall.y + 20);
+
+        drawExit();
+
+        for (const ed of energyDrinks) {
+            const t = performance.now() / 300;
+            const bob = Math.sin(t + ed.bobPhase) * 3;
+            ctx.save();
+            ctx.shadowColor = '#4ecdc4';
+            ctx.shadowBlur = 20;
+            ctx.fillStyle = '#4ecdc4';
+            if (ctx.roundRect) {
+                ctx.beginPath();
+                ctx.roundRect(ed.x - 7, ed.y - 14 + bob, 14, 28, 4);
+                ctx.fill();
+            } else {
+                ctx.fillRect(ed.x - 7, ed.y - 14 + bob, 14, 28);
+            }
+            ctx.fillStyle = '#0d5c5c';
+            ctx.fillRect(ed.x - 7, ed.y - 4 + bob, 14, 6);
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#ffd166';
+            ctx.beginPath();
+            ctx.moveTo(ed.x + 1, ed.y - 12 + bob);
+            ctx.lineTo(ed.x - 4, ed.y - 1 + bob);
+            ctx.lineTo(ed.x, ed.y - 1 + bob);
+            ctx.lineTo(ed.x - 2, ed.y + 12 + bob);
+            ctx.lineTo(ed.x + 4, ed.y - 2 + bob);
+            ctx.lineTo(ed.x, ed.y - 2 + bob);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+        }
+
+        if (scenario === 'lie') {
+            if (dad) drawDad(dad);
+            if (momGuard) drawMom(momGuard);
+        } else if (scenario === 'truth') {
+            for (const s of skibidis) drawSkibidi(s);
+        }
+
+        drawPlayer();
+        ctx.restore();
+
+        if (isDark) drawDarknessVignette();
+        drawJoystick();
+    }
+
+    function drawExit() {
+        const t = performance.now() / 400;
+        const pulse = 0.5 + Math.sin(t) * 0.3;
+        ctx.strokeStyle = scenario === 'lie'
+            ? `rgba(255, 209, 102, ${pulse})`
+            : `rgba(78, 205, 196, ${pulse})`;
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.arc(goalExit.x, goalExit.y, goalExit.r + 8, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = scenario === 'lie'
+            ? `rgba(255, 209, 102, ${0.3 + Math.sin(t) * 0.15})`
+            : `rgba(78, 205, 196, ${0.3 + Math.sin(t) * 0.15})`;
+        ctx.beginPath();
+        ctx.arc(goalExit.x, goalExit.y, goalExit.r + 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 26px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('🚪', goalExit.x, goalExit.y);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 12px Arial';
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 4;
+        ctx.strokeText('ВЫХОД', goalExit.x, goalExit.y - goalExit.r - 14);
+        ctx.fillText('ВЫХОД', goalExit.x, goalExit.y - goalExit.r - 14);
+    }
+
+    function drawDad(d) {
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.beginPath();
+        ctx.ellipse(d.x, d.y + d.r*0.8, d.r*0.9, d.r*0.35, 0, 0, Math.PI*2);
+        ctx.fill();
+        if (d.frozen) {
+            const t = performance.now() / 200;
+            const alpha = 0.4 + Math.sin(t) * 0.3;
+            ctx.strokeStyle = `rgba(78, 205, 196, ${alpha})`;
+            ctx.lineWidth = 3;
+            ctx.setLineDash([6, 6]);
+            ctx.beginPath();
+            ctx.arc(d.x, d.y, d.r + 8, 0, Math.PI*2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+        ctx.fillStyle = '#2c3e50';
+        ctx.beginPath();
+        ctx.arc(d.x, d.y, d.r, 0, Math.PI*2);
+        ctx.fill();
+        ctx.strokeStyle = '#1a2530';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillStyle = '#f5d0a9';
+        ctx.beginPath();
+        ctx.arc(d.x, d.y, d.r*0.7, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = '#000';
+        ctx.beginPath();
+        ctx.moveTo(d.x - 6, d.y - 4);
+        ctx.lineTo(d.x - 2, d.y - 2);
+        ctx.lineTo(d.x - 6, d.y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(d.x + 6, d.y - 4);
+        ctx.lineTo(d.x + 2, d.y - 2);
+        ctx.lineTo(d.x + 6, d.y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#8b3a3a';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(d.x - 5, d.y + 6);
+        ctx.lineTo(d.x + 5, d.y + 6);
+        ctx.stroke();
+        if (!d.frozen) {
+            ctx.strokeStyle = '#5a3a1a';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(d.x + d.r*0.7, d.y - d.r*0.3);
+            ctx.lineTo(d.x + d.r*1.6, d.y - d.r*0.8);
+            ctx.stroke();
+            ctx.fillStyle = '#ffd166';
+            ctx.fillRect(d.x + d.r*1.5, d.y - d.r*0.9, 6, 6);
+            ctx.font = 'bold 10px Arial';
+            ctx.fillStyle = '#fff';
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 3;
+            ctx.strokeText('РЕМЕНЬ!', d.x, d.y - d.r - 14);
+            ctx.fillText('РЕМЕНЬ!', d.x, d.y - d.r - 14);
+        } else {
+            ctx.font = 'bold 10px Arial';
+            ctx.fillStyle = '#4ecdc4';
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 3;
+            ctx.strokeText('СЧИТАЮ...', d.x, d.y - d.r - 14);
+            ctx.fillText('СЧИТАЮ...', d.x, d.y - d.r - 14);
+        }
+    }
+
+    function drawMom(m) {
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.beginPath();
+        ctx.ellipse(m.x, m.y + m.r*0.8, m.r*0.9, m.r*0.35, 0, 0, Math.PI*2);
+        ctx.fill();
+        const t = performance.now() / 300;
+        const alpha = 0.5 + Math.sin(t) * 0.3;
+        ctx.strokeStyle = `rgba(232, 67, 147, ${alpha})`;
+        ctx.lineWidth = 4;
+        ctx.setLineDash([8, 6]);
+        ctx.beginPath();
+        ctx.arc(m.x, m.y, m.r + 12, 0, Math.PI*2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#e84393';
+        ctx.beginPath();
+        ctx.arc(m.x, m.y, m.r, 0, Math.PI*2);
+        ctx.fill();
+        ctx.strokeStyle = '#8a2555';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillStyle = '#f5d0a9';
+        ctx.beginPath();
+        ctx.arc(m.x, m.y, m.r*0.7, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = '#000';
+        ctx.beginPath();
+        ctx.arc(m.x - 4, m.y - 2, 2, 0, Math.PI*2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(m.x + 4, m.y - 2, 2, 0, Math.PI*2);
+        ctx.fill();
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(m.x - 7, m.y - 6);
+        ctx.lineTo(m.x - 2, m.y - 5);
+        ctx.moveTo(m.x + 7, m.y - 6);
+        ctx.lineTo(m.x + 2, m.y - 5);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(m.x - 4, m.y + 5);
+        ctx.lineTo(m.x + 4, m.y + 5);
+        ctx.stroke();
+        ctx.font = 'bold 10px Arial';
+        ctx.fillStyle = '#fff';
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 3;
+        ctx.strokeText('МАМА-ОХРАНА', m.x, m.y - m.r - 16);
+        ctx.fillText('МАМА-ОХРАНА', m.x, m.y - m.r - 16);
+    }
+
+    function drawSkibidi(s) {
+        const bob = Math.sin(s.bob + performance.now() / 200) * 2;
+        const cx = s.x;
+        const cy = s.y + bob;
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.beginPath();
+        ctx.ellipse(s.x, s.y + s.r*0.8, s.r*0.9, s.r*0.35, 0, 0, Math.PI*2);
+        ctx.fill();
+        if (s.frozen) {
+            const t = performance.now() / 200;
+            const alpha = 0.4 + Math.sin(t) * 0.3;
+            ctx.strokeStyle = `rgba(78, 205, 196, ${alpha})`;
+            ctx.lineWidth = 3;
+            ctx.setLineDash([6, 6]);
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, s.r + 8, 0, Math.PI*2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+        ctx.fillStyle = '#e8e8e8';
+        ctx.beginPath();
+        ctx.ellipse(cx, cy + s.r*0.4, s.r*1.1, s.r*0.7, 0, 0, Math.PI*2);
+        ctx.fill();
+        ctx.strokeStyle = '#888';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillStyle = '#d0d0d0';
+        ctx.fillRect(cx - s.r*0.8, cy - s.r*0.8, s.r*1.6, s.r*0.8);
+        ctx.strokeStyle = '#888';
+        ctx.strokeRect(cx - s.r*0.8, cy - s.r*0.8, s.r*1.6, s.r*0.8);
+        ctx.fillStyle = '#1a1a1a';
+        ctx.beginPath();
+        ctx.ellipse(cx, cy + s.r*0.3, s.r*0.5, s.r*0.25, 0, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = '#f5d0a9';
+        ctx.beginPath();
+        ctx.arc(cx, cy - s.r*0.5, s.r*0.55, 0, Math.PI*2);
+        ctx.fill();
+        ctx.strokeStyle = '#8b5a2b';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(cx - 4, cy - s.r*0.55, 3.5, 0, Math.PI*2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(cx + 4, cy - s.r*0.55, 3.5, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = '#000';
+        ctx.beginPath();
+        ctx.arc(cx - 4, cy - s.r*0.55, 2, 0, Math.PI*2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(cx + 4, cy - s.r*0.55, 2, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = '#4a1010';
+        ctx.beginPath();
+        ctx.ellipse(cx, cy - s.r*0.25, 5, 4, 0, 0, Math.PI*2);
+        ctx.fill();
+        if (!s.frozen) {
+            ctx.font = 'bold 9px Arial';
+            ctx.fillStyle = '#fff';
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 3;
+            ctx.strokeText('SKIBIDI!', cx, cy - s.r - 12);
+            ctx.fillText('SKIBIDI!', cx, cy - s.r - 12);
+        }
+    }
+
+    function drawPlayer() {
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.beginPath();
+        ctx.ellipse(player.x, player.y + PLAYER_RADIUS*0.7, PLAYER_RADIUS*0.9, PLAYER_RADIUS*0.35, 0, 0, Math.PI*2);
+        ctx.fill();
+        if (player.boostTime > 0) {
+            ctx.shadowColor = '#4ecdc4';
+            ctx.shadowBlur = 25;
+        }
+        ctx.fillStyle = '#4a90d9';
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, PLAYER_RADIUS, 0, Math.PI*2);
+        ctx.fill();
+        ctx.strokeStyle = '#2c5f8a';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#f5d0a9';
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, PLAYER_RADIUS*0.75, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = '#3d2b1f';
+        ctx.beginPath();
+        ctx.arc(player.x, player.y - PLAYER_RADIUS*0.15, PLAYER_RADIUS*0.75, Math.PI, 0);
+        ctx.fill();
+        ctx.fillStyle = 'white';
+        ctx.beginPath();
+        ctx.arc(player.x - 4, player.y - 2, 3, 0, Math.PI*2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(player.x + 4, player.y - 2, 3, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = 'black';
+        ctx.beginPath();
+        ctx.arc(player.x - 4, player.y - 2, 1.5, 0, Math.PI*2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(player.x + 4, player.y - 2, 1.5, 0, Math.PI*2);
+        ctx.fill();
+        ctx.strokeStyle = '#8b5a2b';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(player.x, player.y + 5, 4, 0.1, Math.PI - 0.1);
+        ctx.stroke();
+    }
+
+    function drawDarknessVignette() {
+        const camX = Math.max(0, Math.min(WORLD_W*scale - viewW, player.x*scale - viewW/2));
+        const camY = Math.max(0, Math.min(WORLD_H*scale - viewH, player.y*scale - viewH/2));
+        const screenX = player.x * scale - camX + offsetX;
+        const screenY = player.y * scale - camY + offsetY;
+        const radius = Math.min(viewW, viewH) * 0.28;
+        const grad = ctx.createRadialGradient(screenX, screenY, radius * 0.3, screenX, screenY, radius * 1.7);
+        grad.addColorStop(0, 'rgba(0,0,0,0)');
+        grad.addColorStop(0.5, 'rgba(0,0,0,0.5)');
+        grad.addColorStop(1, 'rgba(0,0,0,0.95)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, viewW, viewH);
+    }
+
+    function drawJoystick() {
+        if (gameState !== 'playing') return;
+        const { baseX, baseY, baseRadius, knobX, knobY, knobRadius, active } = joystick;
+        ctx.beginPath();
+        ctx.arc(baseX, baseY, baseRadius, 0, Math.PI*2);
+        ctx.fillStyle = active ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.07)';
+        ctx.fill();
+        ctx.strokeStyle = active ? 'rgba(255,209,102,0.7)' : 'rgba(255,255,255,0.25)';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(baseX - baseRadius*0.7, baseY);
+        ctx.lineTo(baseX + baseRadius*0.7, baseY);
+        ctx.moveTo(baseX, baseY - baseRadius*0.7);
+        ctx.lineTo(baseX, baseY + baseRadius*0.7);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(knobX, knobY, knobRadius, 0, Math.PI*2);
+        const grad = ctx.createRadialGradient(knobX - knobRadius*0.3, knobY - knobRadius*0.3, 2, knobX, knobY, knobRadius);
+        grad.addColorStop(0, '#ffe08a');
+        grad.addColorStop(1, '#e6a817');
+        ctx.fillStyle = grad;
+        ctx.fill();
+        ctx.strokeStyle = '#8a6210';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+    }
+
+    // ============ УПРАВЛЕНИЕ ============
+    let keys = { left:false, right:false, up:false, down:false };
+    window.addEventListener('keydown', (e) => {
+        const k = e.key.toLowerCase();
+        if (k === 'arrowleft' || k === 'a' || k === 'ф') { keys.left = true; e.preventDefault(); }
+        if (k === 'arrowright' || k === 'd' || k === 'в') { keys.right = true; e.preventDefault(); }
+        if (k === 'arrowup' || k === 'w' || k === 'ц') { keys.up = true; e.preventDefault(); }
+        if (k === 'arrowdown' || k === 's' || k === 'ы') { keys.down = true; e.preventDefault(); }
+        if (k === ' ' || k === 'enter') {
+            if ((gameState === 'intro') && dialogueActive) advanceDialogue();
+        }
+    });
+    window.addEventListener('keyup', (e) => {
+        const k = e.key.toLowerCase();
+        if (k === 'arrowleft' || k === 'a' || k === 'ф') keys.left = false;
+        if (k === 'arrowright' || k === 'd' || k === 'в') keys.right = false;
+        if (k === 'arrowup' || k === 'w' || k === 'ц') keys.up = false;
+        if (k === 'arrowdown' || k === 's' || k === 'ы') keys.down = false;
+    });
+
+    function getCanvasCoords(clientX, clientY) {
+        const rect = canvas.getBoundingClientRect();
+        return { x: clientX - rect.left, y: clientY - rect.top };
+    }
+
+    function isPointInJoystickArea(x, y) {
+        const zoneR = joystick.baseRadius * 1.9;
+        return Math.hypot(x - joystick.baseX, y - joystick.baseY) < zoneR;
+    }
+
+    canvas.addEventListener('touchstart', (e) => {
+        if (gameState === 'intro' && dialogueActive) {
+            advanceDialogue();
+            e.preventDefault();
+            return;
+        }
+        if (gameState !== 'playing') return;
+        for (let i = 0; i < e.changedTouches.length; i++) {
+            const t = e.changedTouches[i];
+            const p = getCanvasCoords(t.clientX, t.clientY);
+            if (!joystick.active && isPointInJoystickArea(p.x, p.y)) {
+                joystick.active = true;
+                joystick.touchId = t.identifier;
+                joystickDirFromPoint(p.x, p.y);
+                e.preventDefault();
+                break;
+            }
+        }
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', (e) => {
+        if (!joystick.active) return;
+        for (let i = 0; i < e.changedTouches.length; i++) {
+            const t = e.changedTouches[i];
+            if (t.identifier === joystick.touchId) {
+                const p = getCanvasCoords(t.clientX, t.clientY);
+                joystickDirFromPoint(p.x, p.y);
+                e.preventDefault();
+                break;
+            }
+        }
+    }, { passive: false });
+
+    function handleTouchEnd(e) {
+        for (let i = 0; i < e.changedTouches.length; i++) {
+            const t = e.changedTouches[i];
+            if (t.identifier === joystick.touchId) {
+                resetJoystick();
+                e.preventDefault();
+                break;
+            }
+        }
+    }
+    canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+    canvas.addEventListener('touchcancel', handleTouchEnd, { passive: false });
+
+    let mouseDown = false;
+    canvas.addEventListener('mousedown', (e) => {
+        if (gameState === 'intro' && dialogueActive) {
+            advanceDialogue();
+            return;
+        }
+        if (gameState !== 'playing') return;
+        const p = getCanvasCoords(e.clientX, e.clientY);
+        if (isPointInJoystickArea(p.x, p.y)) {
+            mouseDown = true;
+            joystick.active = true;
+            joystick.touchId = 'mouse';
+            joystickDirFromPoint(p.x, p.y);
+            e.preventDefault();
+        }
+    });
+    canvas.addEventListener('mousemove', (e) => {
+        if (!mouseDown) return;
+        const p = getCanvasCoords(e.clientX, e.clientY);
+        joystickDirFromPoint(p.x, p.y);
+    });
+    window.addEventListener('mouseup', () => {
+        if (mouseDown) {
+            mouseDown = false;
+            resetJoystick();
+        }
+    });
+
+    canvas.addEventListener('contextmenu', e => e.preventDefault());
+    document.addEventListener('gesturestart', e => e.preventDefault());
+
+    // ============ КНОПКИ ============
+    startBtn.addEventListener('click', beginGame);
+    retryBtn.addEventListener('click', () => { showScreen(null); spankOverlay.classList.remove('show'); beginGame(); });
+    winRetryBtn.addEventListener('click', () => { showScreen(null); beginGame(); });
+    spankRetry.addEventListener('click', () => { spankOverlay.classList.remove('show'); showScreen(null); beginGame(); });
+
+    // ============ ИНИЦИАЛИЗАЦИЯ ============
+    buildLieMap();
+    requestAnimationFrame(() => {
+        resize();
+        resetGame();
+        showScreen('start');
+    });
+
+})();
+</script>
+</body>
+  </html>
