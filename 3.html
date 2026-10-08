@@ -1,0 +1,1353 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Школьник в буфете без денег 3 — Подъезд</title>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; user-select:none; -webkit-tap-highlight-color:transparent; }
+    html, body {
+        width:100%; height:100%;
+        background:#0f0f1a;
+        font-family:'Segoe UI',Arial,sans-serif;
+        overflow:hidden; touch-action:none;
+        overscroll-behavior:none;
+    }
+    #game-container {
+        position:fixed; inset:0;
+        width:100vw; height:100vh;
+        height:100dvh;
+        background:#16213e;
+        overflow:hidden;
+    }
+    canvas { display:block; width:100%; height:100%; }
+
+    .overlay {
+        position:absolute; inset:0;
+        display:flex; flex-direction:column;
+        justify-content:center; align-items:center;
+        background:rgba(0,0,0,.9); color:#fff;
+        text-align:center; padding:24px; z-index:10;
+        backdrop-filter:blur(5px); transition:opacity .3s;
+    }
+    .overlay.hidden { opacity:0; pointer-events:none; }
+    h1 { font-size:clamp(24px,6.5vw,42px); margin-bottom:12px; color:#ffd166;
+         text-shadow:0 0 20px rgba(255,209,102,.5); }
+    p  { font-size:clamp(13px,3.6vw,18px); margin-bottom:12px; line-height:1.5; color:#ddd;
+         max-width:640px; }
+    button {
+        background:#ffd166; border:none; border-radius:50px;
+        padding:14px 40px; font-size:clamp(15px,4.5vw,22px);
+        font-weight:bold; color:#1a1a2e; cursor:pointer;
+        box-shadow:0 6px 0 #b8943e; margin-top:8px;
+        transition:transform .1s, box-shadow .15s;
+        font-family:inherit;
+    }
+    button:active { transform:translateY(4px); box-shadow:0 2px 0 #b8943e; }
+
+    .timer-bar {
+        position:absolute; top:calc(env(safe-area-inset-top, 0px) + 10px);
+        left:5%; width:90%; height:10px;
+        background:rgba(255,255,255,.15); border-radius:10px;
+        overflow:hidden; z-index:5; pointer-events:none;
+    }
+    .timer-fill {
+        height:100%; width:100%;
+        background:linear-gradient(90deg,#06d6a0,#ffd166,#ef476f);
+        transition:width .1s linear;
+    }
+    .timer-text {
+        position:absolute; top:calc(env(safe-area-inset-top, 0px) + 26px);
+        left:50%; transform:translateX(-50%);
+        color:#fff; font-weight:bold; font-size:clamp(13px,3.6vw,18px);
+        text-shadow:0 2px 8px rgba(0,0,0,.9); z-index:5; pointer-events:none;
+    }
+    .hud-info {
+        position:absolute; top:calc(env(safe-area-inset-top, 0px) + 26px);
+        left:calc(env(safe-area-inset-left, 0px) + 14px);
+        color:#ffd166; font-weight:bold; font-size:clamp(12px,3.2vw,16px);
+        text-shadow:0 2px 8px rgba(0,0,0,.9); z-index:5; pointer-events:none;
+    }
+    .hud-danger {
+        position:absolute;
+        top:calc(env(safe-area-inset-top, 0px) + 26px);
+        right:calc(env(safe-area-inset-right, 0px) + 14px);
+        color:#ff6b6b; font-weight:bold; font-size:clamp(12px,3.2vw,16px);
+        text-shadow:0 2px 8px rgba(0,0,0,.9); z-index:5; pointer-events:none;
+        display:none;
+    }
+    .hud-danger.show { display:block; animation:pulse .5s infinite alternate; }
+    .hud-boost {
+        position:absolute;
+        top:calc(env(safe-area-inset-top, 0px) + 52px);
+        right:calc(env(safe-area-inset-right, 0px) + 14px);
+        color:#4ecdc4; font-weight:bold; font-size:clamp(12px,3.2vw,16px);
+        text-shadow:0 2px 8px rgba(0,0,0,.9); z-index:5; pointer-events:none;
+        display:none;
+    }
+    .hud-boost.show { display:block; }
+    .hud-grace {
+        position:absolute;
+        top:50%; left:50%;
+        transform:translate(-50%, -50%);
+        color:#4ecdc4;
+        font-weight:bold;
+        font-size:clamp(80px, 22vw, 180px);
+        text-shadow:0 0 40px rgba(78,205,196,.8), 0 6px 20px rgba(0,0,0,.8);
+        z-index:8; pointer-events:none;
+        display:none;
+        animation:gracePulse .5s infinite alternate;
+    }
+    .hud-grace.show { display:block; }
+    @keyframes gracePulse { from { transform:translate(-50%,-50%) scale(1); } to { transform:translate(-50%,-50%) scale(1.15); } }
+
+    .grace-banner {
+        position:absolute;
+        top:25%; left:50%;
+        transform:translateX(-50%);
+        color:#4ecdc4;
+        font-weight:bold;
+        font-size:clamp(16px,4.5vw,28px);
+        text-shadow:0 2px 12px rgba(0,0,0,.9);
+        z-index:8; pointer-events:none;
+        display:none;
+        text-align:center;
+    }
+    .grace-banner.show { display:block; }
+
+    @keyframes pulse { from { opacity:1; } to { opacity:.4; } }
+
+    .dialogue-box {
+        position:absolute;
+        left:50%; bottom:calc(env(safe-area-inset-bottom, 0px) + 30px);
+        transform:translateX(-50%);
+        width:min(90%, 720px);
+        background:rgba(20,20,35,.96);
+        border:3px solid #ffd166;
+        border-radius:16px;
+        padding:20px 24px;
+        color:#fff;
+        z-index:20;
+        box-shadow:0 10px 30px rgba(0,0,0,.7);
+        display:none;
+    }
+    .dialogue-box.show { display:block; animation:slideUp .35s ease-out; }
+    @keyframes slideUp { from { transform:translate(-50%, 30px); opacity:0; } to { transform:translate(-50%,0); opacity:1; } }
+    .dialogue-speaker {
+        font-weight:bold; color:#ffd166; font-size:clamp(14px,3.8vw,18px);
+        margin-bottom:8px;
+    }
+    .dialogue-text {
+        font-size:clamp(13px,3.6vw,17px); line-height:1.5; color:#eee;
+    }
+    .dialogue-hint {
+        margin-top:10px; font-size:clamp(11px,3vw,14px); color:#888;
+        font-style:italic;
+    }
+
+    /* Кнопки выбора */
+    .choice-box {
+        position:absolute;
+        left:50%; top:50%;
+        transform:translate(-50%, -50%);
+        width:min(92%, 720px);
+        display:none;
+        flex-direction:column;
+        gap:14px;
+        z-index:22;
+    }
+    .choice-box.show { display:flex; }
+    .choice-btn {
+        background:linear-gradient(180deg, #ff6b6b 0%, #c92a2a 100%);
+        border:none;
+        border-radius:16px;
+        padding:22px 20px;
+        font-size:clamp(15px,4.2vw,22px);
+        font-weight:bold;
+        color:#fff;
+        cursor:pointer;
+        box-shadow:0 6px 0 #7a1a1a, 0 10px 20px rgba(0,0,0,.5);
+        transition:transform .1s, box-shadow .15s;
+        text-align:center;
+        font-family:inherit;
+        letter-spacing:0.5px;
+    }
+    .choice-btn.green {
+        background:linear-gradient(180deg, #51cf66 0%, #2f9e44 100%);
+        box-shadow:0 6px 0 #1a5c28, 0 10px 20px rgba(0,0,0,.5);
+    }
+    .choice-btn:active {
+        transform:translateY(4px);
+        box-shadow:0 2px 0 #7a1a1a, 0 4px 10px rgba(0,0,0,.5);
+    }
+    .choice-btn.green:active {
+        box-shadow:0 2px 0 #1a5c28, 0 4px 10px rgba(0,0,0,.5);
+    }
+
+    /* Тёмная вуаль для сцены выбора */
+    .choice-backdrop {
+        position:absolute; inset:0;
+        background:rgba(0,0,0,.6);
+        z-index:21;
+        display:none;
+    }
+    .choice-backdrop.show { display:block; }
+</style>
+</head>
+<body>
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+
+    <div class="timer-bar"><div class="timer-fill" id="timerFill"></div></div>
+    <div class="timer-text" id="timerText">2:30</div>
+    <div class="hud-info" id="speedHud">👟 Скорость: обычная</div>
+    <div class="hud-danger" id="dangerHud">🚨 ОПАСНОСТЬ!</div>
+    <div class="hud-boost" id="boostHud">⚡ ЭНЕРГЕТИК: 0с</div>
+
+    <div class="hud-grace" id="graceHud">5</div>
+    <div class="grace-banner" id="graceBanner">🏃 ФОРА <span id="graceSeconds">5</span>с — БЕГИ!</div>
+
+    <div class="dialogue-box" id="dialogueBox">
+        <div class="dialogue-speaker" id="dialogueSpeaker">Хулиган</div>
+        <div class="dialogue-text" id="dialogueText"></div>
+        <div class="dialogue-hint" id="dialogueHint">Нажми, чтобы продолжить</div>
+    </div>
+
+    <!-- Сцена выбора -->
+    <div class="choice-backdrop" id="choiceBackdrop"></div>
+    <div class="choice-box" id="choiceBox">
+        <button class="choice-btn" id="choiceNo">❌ НЕТ 100 РУБЛЕЙ</button>
+        <button class="choice-btn green" id="choiceYes">💵 ЕСТЬ 100 РУБЛЕЙ (ЛОЖЬ)</button>
+    </div>
+
+    <div class="overlay" id="startScreen">
+        <div class="emoji-big" style="font-size:clamp(44px,14vw,76px);margin-bottom:8px;">🚪</div>
+        <h1>Школьник в буфете без денег 3</h1>
+        <p>Ты забежал в парадную своего дома.<br>
+           Но на лестничной клетке тебя ждёт хулиган.</p>
+        <p style="color:#ff8a8a;">Он требует 100 рублей за проход.<br>
+           Что ты выберешь — сказать правду или соврать?</p>
+        <p style="font-size:.9em;color:#aaa;">Управление: джойстик (левый нижний угол)<br>или WASD / стрелки</p>
+        <button id="startBtn">ВОЙТИ В ПАРАДНУЮ 🚪</button>
+    </div>
+
+    <div class="overlay death-screen hidden" id="deathScreen" style="background:rgba(70,0,0,.93);">
+        <div class="emoji-big" style="font-size:clamp(44px,14vw,76px);margin-bottom:8px;">💀</div>
+        <h1 id="deathTitle">Тебя поймали!</h1>
+        <p id="deathReason">Тебя догнали в подъезде</p>
+        <button id="retryBtn">Попробовать снова</button>
+    </div>
+
+    <div class="overlay win-screen hidden" id="winScreen" style="background:rgba(0,70,35,.93);">
+        <div class="emoji-big" style="font-size:clamp(44px,14vw,76px);margin-bottom:8px;">🏠</div>
+        <h1>Ты дома!</h1>
+        <p>Ты забежал в свою квартиру и захлопнул дверь.<br>
+           Наконец-то можно спокойно съесть сосиску в тесте! 🌭</p>
+        <button id="winRetryBtn">Играть снова</button>
+    </div>
+</div>
+
+<script>
+(function(){
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const timerFill = document.getElementById('timerFill');
+    const timerText = document.getElementById('timerText');
+    const speedHud = document.getElementById('speedHud');
+    const dangerHud = document.getElementById('dangerHud');
+    const boostHud = document.getElementById('boostHud');
+    const graceHud = document.getElementById('graceHud');
+    const graceBanner = document.getElementById('graceBanner');
+    const graceSeconds = document.getElementById('graceSeconds');
+
+    const startScreen = document.getElementById('startScreen');
+    const deathScreen = document.getElementById('deathScreen');
+    const winScreen = document.getElementById('winScreen');
+    const deathReason = document.getElementById('deathReason');
+    const deathTitle = document.getElementById('deathTitle');
+    const startBtn = document.getElementById('startBtn');
+    const retryBtn = document.getElementById('retryBtn');
+    const winRetryBtn = document.getElementById('winRetryBtn');
+
+    const dialogueBox = document.getElementById('dialogueBox');
+    const dialogueSpeaker = document.getElementById('dialogueSpeaker');
+    const dialogueText = document.getElementById('dialogueText');
+    const dialogueHint = document.getElementById('dialogueHint');
+
+    const choiceBox = document.getElementById('choiceBox');
+    const choiceBackdrop = document.getElementById('choiceBackdrop');
+    const choiceNo = document.getElementById('choiceNo');
+    const choiceYes = document.getElementById('choiceYes');
+
+    // ============ КОНСТАНТЫ ============
+    const GAME_DURATION = 150; // 2:30
+    const GRACE_PERIOD = 3;    // фора 3 секунды после выбора
+    const PLAYER_RADIUS = 14;
+    const PLAYER_SPEED = 3.4;
+    const PLAYER_SPEED_BOOSTED = 5.8;
+    const BOOST_DURATION = 5;
+    const ENEMY_RADIUS = 16;
+    const TILE = 60;
+
+    // Мир — длинный коридор подъезда
+    // Верхние и нижние полосы — стены квартир, посередине — коридор
+    const WORLD_COLS = 80;   // очень длинный коридор (80*60 = 4800px)
+    const WORLD_ROWS = 7;    // 7*60 = 420px
+
+    // ============ СОСТОЯНИЕ ============
+    let gameState = 'start'; // start, intro, choice, playing, dead, win
+    let timeLeft = GAME_DURATION;
+    let graceTime = 0;
+    let lastTimestamp = 0;
+    let animationId = null;
+
+    let WORLD_W = 0, WORLD_H = 0;
+    let scale = 1, offsetX = 0, offsetY = 0;
+    let viewW = 0, viewH = 0;
+
+    let player = { x:0, y:0, boostTime:0 };
+
+    // Враг — либо хулиган (bully), либо скибиди туалет (skibidi)
+    let chaser = null;
+    let chaserType = null; // 'bully' или 'skibidi'
+
+    let energyDrinks = []; // энергетики по пути
+    let goalDoor = { x:0, y:0, reached:false };
+
+    // Диалоги
+    let dialogueQueue = [];
+    let dialogueIndex = 0;
+    let dialogueActive = false;
+    let dialogueOnComplete = null;
+
+    // ============ ДЖОЙСТИК ============
+    const joystick = {
+        baseX: 0, baseY: 0,
+        baseRadius: 65,
+        knobX: 0, knobY: 0,
+        knobRadius: 28,
+        active: false,
+        touchId: null,
+        dirX: 0, dirY: 0
+    };
+
+    function updateJoystickLayout() {
+        joystick.baseX = 80;
+        joystick.baseY = viewH - 80;
+        joystick.baseRadius = Math.min(70, Math.min(viewW, viewH) * 0.14);
+        joystick.knobRadius = joystick.baseRadius * 0.45;
+        if (!joystick.active) {
+            joystick.knobX = joystick.baseX;
+            joystick.knobY = joystick.baseY;
+        }
+    }
+
+    function joystickDirFromPoint(px, py) {
+        let dx = px - joystick.baseX;
+        let dy = py - joystick.baseY;
+        const dist = Math.hypot(dx, dy);
+        const maxDist = joystick.baseRadius;
+        if (dist < 6) {
+            joystick.dirX = 0; joystick.dirY = 0;
+            joystick.knobX = joystick.baseX; joystick.knobY = joystick.baseY;
+            return;
+        }
+        const clampedDist = Math.min(dist, maxDist);
+        const nx = dx / dist, ny = dy / dist;
+        joystick.knobX = joystick.baseX + nx * clampedDist;
+        joystick.knobY = joystick.baseY + ny * clampedDist;
+        const mag = Math.min(dist / maxDist, 1);
+        joystick.dirX = nx * mag;
+        joystick.dirY = ny * mag;
+    }
+
+    function resetJoystick() {
+        joystick.active = false;
+        joystick.touchId = null;
+        joystick.dirX = 0; joystick.dirY = 0;
+        joystick.knobX = joystick.baseX;
+        joystick.knobY = joystick.baseY;
+    }
+
+    // ============ МИР ============
+    let worldMap = []; // [row][col]: 0 = пол коридора, 2 = стена/квартиры, 3 = дверь квартиры игрока
+
+    function buildWorld() {
+        worldMap = [];
+        for (let r = 0; r < WORLD_ROWS; r++) {
+            let row = [];
+            for (let c = 0; c < WORLD_COLS; c++) {
+                if (r === 0 || r === WORLD_ROWS - 1) {
+                    row.push(2); // стены
+                } else {
+                    row.push(0); // коридор
+                }
+            }
+            worldMap.push(row);
+        }
+
+        // Проставляем двери квартир в стенах для декора (каждые 6 клеток)
+        for (let c = 3; c < WORLD_COLS; c += 6) {
+            // Верхние двери
+            worldMap[0][c] = 3;
+            // Нижние двери
+            worldMap[WORLD_ROWS - 1][c] = 3;
+        }
+
+        // Финиш — квартира игрока в самом конце коридора справа
+        // Дверь на верхней стене
+        goalDoor.col = WORLD_COLS - 4;
+        goalDoor.row = 0;
+        worldMap[goalDoor.row][goalDoor.col] = 3;
+        goalDoor.x = goalDoor.col * TILE + TILE/2;
+        goalDoor.y = goalDoor.row * TILE + TILE/2;
+        goalDoor.reached = false;
+    }
+
+    // ============ РАЗМЕРЫ ============
+    function resize() {
+        const rect = document.getElementById('game-container').getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+
+        viewW = rect.width;
+        viewH = rect.height;
+        canvas.width = viewW * dpr;
+        canvas.height = viewH * dpr;
+        canvas.style.width = viewW + 'px';
+        canvas.style.height = viewH + 'px';
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        WORLD_W = WORLD_COLS * TILE;
+        WORLD_H = WORLD_ROWS * TILE;
+
+        const sy = viewH / WORLD_H;
+        scale = sy;
+        offsetY = (viewH - WORLD_H * scale) / 2;
+
+        updateJoystickLayout();
+    }
+
+    window.addEventListener('resize', () => { resize(); });
+    window.addEventListener('orientationchange', () => { setTimeout(resize, 250); });
+
+    // ============ КОЛЛИЗИИ ============
+    function getTile(cx, cy) {
+        const c = Math.floor(cx / TILE);
+        const r = Math.floor(cy / TILE);
+        if (r < 0 || r >= WORLD_ROWS || c < 0 || c >= WORLD_COLS) return 2;
+        return worldMap[r][c];
+    }
+
+    function isSolid(cx, cy) {
+        const t = getTile(cx, cy);
+        return t === 2; // только непроходимые стены; двери (3) — тоже стены, но рисуются как двери
+    }
+
+    function circleSolidCollision(x, y, radius) {
+        const points = 8;
+        for (let i = 0; i < points; i++) {
+            const a = (i / points) * Math.PI * 2;
+            const px = x + Math.cos(a) * radius;
+            const py = y + Math.sin(a) * radius;
+            if (isSolid(px, py)) return true;
+        }
+        return false;
+    }
+
+    function moveWithCollision(ent, dx, dy, radius) {
+        let nx = ent.x + dx;
+        if (!circleSolidCollision(nx, ent.y, radius)) ent.x = nx;
+        let ny = ent.y + dy;
+        if (!circleSolidCollision(ent.x, ny, radius)) ent.y = ny;
+    }
+
+    // ============ ВРАГ ============
+    function createChaser(type) {
+        chaserType = type;
+        let speed, color, emoji, name;
+        if (type === 'bully') {
+            speed = 3.15;
+            color = '#c0392b';
+            emoji = '😎';
+            name = 'Хулиган';
+        } else {
+            speed = 3.25;
+            color = '#7d3c98';
+            emoji = '🚽';
+            name = 'Скибиди Туалет';
+        }
+        chaser = {
+            x: player.x - TILE * 2.5,
+            y: player.y,
+            r: ENEMY_RADIUS,
+            speed,
+            color,
+            emoji,
+            name,
+            frozen: true,
+            stuckTimer: 0,
+            bob: 0
+        };
+    }
+
+    function updateChaser(dt) {
+        if (!chaser || chaser.frozen) return;
+
+        let dx = player.x - chaser.x;
+        let dy = player.y - chaser.y;
+        const dist = Math.hypot(dx, dy) || 1;
+
+        // Коридор узкий — враг в основном движется по X, но может и по Y
+        let nx = dx / dist;
+        let ny = dy / dist;
+
+        // Нормализуем — приоритет направления по X
+        const speed = chaser.speed * dt * 60;
+        const moveX = nx * speed;
+        const moveY = ny * speed * 0.6; // по Y медленнее — коридор узкий
+
+        const oldX = chaser.x, oldY = chaser.y;
+        moveWithCollision(chaser, moveX, moveY, chaser.r);
+
+        if (Math.abs(chaser.x - oldX) < 0.05 && Math.abs(chaser.y - oldY) < 0.05) {
+            chaser.stuckTimer += dt;
+            if (chaser.stuckTimer > 0.1) {
+                if (!circleSolidCollision(chaser.x + moveX, chaser.y, chaser.r)) chaser.x += moveX;
+                else if (!circleSolidCollision(chaser.x, chaser.y + moveY, chaser.r)) chaser.y += moveY;
+                chaser.stuckTimer = 0;
+            }
+        } else {
+            chaser.stuckTimer = 0;
+        }
+
+        chaser.x = Math.max(chaser.r, Math.min(WORLD_W - chaser.r, chaser.x));
+        chaser.y = Math.max(chaser.r, Math.min(WORLD_H - chaser.r, chaser.y));
+
+        // Анимация покачивания для скибиди
+        chaser.bob += dt * 8;
+    }
+
+    // ============ ЭНЕРГЕТИКИ ============
+    function spawnEnergyDrinks() {
+        energyDrinks = [];
+        const cols = [10, 18, 26, 34, 42, 50, 58, 66];
+        for (const col of cols) {
+            // Чередуем верхнюю и нижнюю половину коридора
+            const row = (col / 6) % 2 < 1 ? 2 : WORLD_ROWS - 3;
+            energyDrinks.push({
+                x: col * TILE + TILE/2,
+                y: row * TILE + TILE/2,
+                r: 14,
+                bobPhase: Math.random() * Math.PI * 2
+            });
+        }
+    }
+
+    // ============ ИГРОК ============
+    function updatePlayer(dt) {
+        let dx = 0, dy = 0;
+        if (keys.left) dx -= 1;
+        if (keys.right) dx += 1;
+        if (keys.up) dy -= 1;
+        if (keys.down) dy += 1;
+
+        if (joystick.dirX !== 0 || joystick.dirY !== 0) {
+            dx = joystick.dirX;
+            dy = joystick.dirY;
+        }
+
+        const len = Math.hypot(dx, dy);
+        if (len > 1) { dx /= len; dy /= len; }
+
+        const baseSpeed = player.boostTime > 0 ? PLAYER_SPEED_BOOSTED : PLAYER_SPEED;
+        const sp = baseSpeed * dt * 60;
+        moveWithCollision(player, dx * sp, dy * sp, PLAYER_RADIUS);
+
+        player.x = Math.max(PLAYER_RADIUS, Math.min(WORLD_W - PLAYER_RADIUS, player.x));
+        player.y = Math.max(PLAYER_RADIUS, Math.min(WORLD_H - PLAYER_RADIUS, player.y));
+
+        if (player.boostTime > 0) {
+            player.boostTime -= dt;
+            if (player.boostTime < 0) player.boostTime = 0;
+        }
+        updateBoostHud();
+    }
+
+    function updateBoostHud() {
+        if (player.boostTime > 0) {
+            boostHud.classList.add('show');
+            boostHud.textContent = `⚡ ЭНЕРГЕТИК: ${player.boostTime.toFixed(1)}с`;
+            speedHud.textContent = `👟 Скорость: УСКОРЕНИЕ`;
+        } else {
+            boostHud.classList.remove('show');
+            speedHud.textContent = `👟 Скорость: обычная`;
+        }
+    }
+
+    function updateGraceHud() {
+        if (graceTime > 0) {
+            const sec = Math.ceil(graceTime);
+            graceHud.classList.add('show');
+            graceHud.textContent = sec;
+            graceBanner.classList.add('show');
+            graceSeconds.textContent = sec;
+        } else {
+            graceHud.classList.remove('show');
+            graceBanner.classList.remove('show');
+        }
+    }
+
+    // ============ ЛОГИКА ============
+    function resetGame() {
+        buildWorld();
+        resize();
+
+        // Игрок стартует в левом конце коридора (у входа в парадную)
+        player.x = 2 * TILE;
+        player.y = (WORLD_ROWS / 2) * TILE;
+        player.boostTime = 0;
+
+        chaser = null;
+        chaserType = null;
+        goalDoor.reached = false;
+
+        spawnEnergyDrinks();
+
+        timeLeft = GAME_DURATION;
+        graceTime = 0;
+        updateTimerUI();
+        updateBoostHud();
+        updateGraceHud();
+        resetJoystick();
+        updateDangerHud();
+    }
+
+    function updateDangerHud() {
+        if (chaserType === 'bully') {
+            dangerHud.textContent = '🚨 ХУЛИГАН БЛИЗКО!';
+        } else if (chaserType === 'skibidi') {
+            dangerHud.textContent = '🚽 СКИБИДИ БЛИЗКО!';
+        } else {
+            dangerHud.textContent = '🚨 ОПАСНОСТЬ!';
+        }
+    }
+
+    function updateTimerUI() {
+        const pct = (timeLeft / GAME_DURATION) * 100;
+        timerFill.style.width = pct + '%';
+        const mins = Math.floor(timeLeft / 60);
+        const secs = Math.floor(timeLeft % 60);
+        timerText.textContent = `${mins}:${secs.toString().padStart(2,'0')}`;
+    }
+
+    function showScreen(screen) {
+        startScreen.classList.add('hidden');
+        deathScreen.classList.add('hidden');
+        winScreen.classList.add('hidden');
+        if (screen === 'start') startScreen.classList.remove('hidden');
+        if (screen === 'death') deathScreen.classList.remove('hidden');
+        if (screen === 'win') winScreen.classList.remove('hidden');
+    }
+
+    function die(reason, title) {
+        if (gameState !== 'playing') return;
+        gameState = 'dead';
+        deathReason.textContent = reason;
+        if (title) deathTitle.textContent = title;
+        else deathTitle.textContent = 'Тебя поймали!';
+        showScreen('death');
+        if (animationId) cancelAnimationFrame(animationId);
+    }
+
+    function win() {
+        if (gameState !== 'playing') return;
+        gameState = 'win';
+        showScreen('win');
+        if (animationId) cancelAnimationFrame(animationId);
+    }
+
+    // ============ ДИАЛОГИ ============
+    function startDialogue(lines, onComplete) {
+        dialogueQueue = lines;
+        dialogueIndex = 0;
+        dialogueActive = true;
+        dialogueOnComplete = onComplete;
+        dialogueBox.classList.add('show');
+        showDialogueLine();
+    }
+
+    function showDialogueLine() {
+        if (dialogueIndex >= dialogueQueue.length) {
+            endDialogue();
+            return;
+        }
+        const line = dialogueQueue[dialogueIndex];
+        dialogueSpeaker.textContent = line.speaker;
+        dialogueSpeaker.style.color = line.color || '#ffd166';
+        dialogueText.textContent = line.text;
+        dialogueHint.textContent = 'Нажми, чтобы продолжить ▶';
+    }
+
+    function advanceDialogue() {
+        if (!dialogueActive) return;
+        dialogueIndex++;
+        if (dialogueIndex >= dialogueQueue.length) {
+            endDialogue();
+        } else {
+            showDialogueLine();
+        }
+    }
+
+    function endDialogue() {
+        dialogueActive = false;
+        dialogueBox.classList.remove('show');
+        const cb = dialogueOnComplete;
+        dialogueOnComplete = null;
+        if (cb) cb();
+    }
+
+    dialogueBox.addEventListener('click', (e) => {
+        e.stopPropagation();
+        advanceDialogue();
+    });
+    dialogueBox.addEventListener('touchstart', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        advanceDialogue();
+    }, { passive: false });
+
+    // ============ СЦЕНА ВЫБОРА ============
+    function showChoice() {
+        gameState = 'choice';
+        choiceBackdrop.classList.add('show');
+        choiceBox.classList.add('show');
+    }
+
+    function hideChoice() {
+        choiceBackdrop.classList.remove('show');
+        choiceBox.classList.remove('show');
+    }
+
+    // Обработчики кнопок выбора
+    choiceNo.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (gameState !== 'choice') return;
+        hideChoice();
+        // Ветка "НЕТ 100 РУБЛЕЙ" — хулиган злится и бежит
+        startDialogue([
+            { speaker: 'Хулиган 😎', color: '#c0392b', text: 'А ЕСЛИ НАЙДУ?!' }
+        ], () => {
+            beginChase('bully');
+        });
+    });
+
+    choiceYes.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (gameState !== 'choice') return;
+        hideChoice();
+        // Ветка "ЕСТЬ 100 РУБЛЕЙ (ЛОЖЬ)" — хулиган пропускает, но появляется скибиди
+        startDialogue([
+            { speaker: 'Хулиган 😎', color: '#c0392b', text: 'ЛАДНО, ПРОХОДИ...' },
+            { speaker: 'Ты 🏃', color: '#4a90d9', text: 'Фух, пронесло...' },
+            { speaker: '???', color: '#7d3c98', text: '...' },
+            { speaker: 'Скибиди Туалет 🚽', color: '#7d3c98', text: 'SKIBIDI DOP DOP YES YES!' }
+        ], () => {
+            beginChase('skibidi');
+        });
+    });
+
+    // ============ НАЧАЛО ПОГОНИ ============
+    function beginChase(type) {
+        createChaser(type);
+        updateDangerHud();
+        gameState = 'playing';
+        graceTime = GRACE_PERIOD;
+        updateGraceHud();
+        lastTimestamp = performance.now();
+        if (animationId) cancelAnimationFrame(animationId);
+        animationId = requestAnimationFrame(gameLoop);
+    }
+
+    // ============ СТАРТ ИГРЫ ============
+    function beginGame() {
+        resetGame();
+        showScreen(null);
+        gameState = 'intro';
+
+        // Вступительный диалог с хулиганом
+        startDialogue([
+            { speaker: 'Хулиган 😎', color: '#c0392b', text: 'СТОЙ, ПАЦАН!' },
+            { speaker: 'Хулиган 😎', color: '#c0392b', text: 'ДАЙ СТО РУБЛЕЙ И ПРОХОДИ!' },
+            { speaker: 'Хулиган 😎', color: '#c0392b', text: 'ЭТО МОЙ ДОМ (ТЕПЕРЬ)!' },
+            { speaker: 'Хулиган 😎', color: '#c0392b', text: 'КОШЕЛЕК ИЛИ ЖИЗНЬ?!' }
+        ], () => {
+            showChoice();
+        });
+    }
+
+    // ============ ИГРОВОЙ ЦИКЛ ============
+    function gameLoop(timestamp) {
+        if (gameState !== 'playing') return;
+        const dt = Math.min((timestamp - lastTimestamp) / 1000, 0.05);
+        lastTimestamp = timestamp;
+
+        update(dt);
+        render();
+
+        animationId = requestAnimationFrame(gameLoop);
+    }
+
+    function update(dt) {
+        timeLeft -= dt;
+        if (timeLeft <= 0) {
+            timeLeft = 0;
+            updateTimerUI();
+            if (chaserType === 'bully') {
+                die('Хулиган догнал тебя. "Я ЖЕ ГОВОРИЛ — ПЛАТИ!"', 'Хулиган тебя поймал!');
+            } else {
+                die('Скибиди туалет догнал тебя. SKIBIDI DOP DOP...', 'Скибиди тебя поймал!');
+            }
+            return;
+        }
+        updateTimerUI();
+
+        updatePlayer(dt);
+
+        if (graceTime > 0) {
+            graceTime -= dt;
+            if (graceTime <= 0) {
+                graceTime = 0;
+                if (chaser) chaser.frozen = false;
+            }
+            updateGraceHud();
+        }
+
+        updateChaser(dt);
+
+        // Проверка столкновения с преследователем (только если не заморожен)
+        if (chaser && !chaser.frozen) {
+            const d = Math.hypot(chaser.x - player.x, chaser.y - player.y);
+            if (d < PLAYER_RADIUS + chaser.r) {
+                if (chaserType === 'bully') {
+                    die('Хулиган поймал тебя! "Я ЖЕ ГОВОРИЛ — ПЛАТИ!"', 'Хулиган тебя поймал!');
+                } else {
+                    die('Скибиди туалет догнал тебя. SKIBIDI DOP DOP...', 'Скибиди тебя поймал!');
+                }
+                return;
+            }
+            if (d < 180) dangerHud.classList.add('show');
+            else dangerHud.classList.remove('show');
+        }
+
+        // Энергетики
+        for (let i = energyDrinks.length - 1; i >= 0; i--) {
+            const ed = energyDrinks[i];
+            if (Math.hypot(player.x - ed.x, player.y - ed.y) < PLAYER_RADIUS + ed.r) {
+                player.boostTime = BOOST_DURATION;
+                energyDrinks.splice(i, 1);
+                updateBoostHud();
+            }
+        }
+
+        // Дверь квартиры — цель
+        if (!goalDoor.reached) {
+            const d = Math.hypot(player.x - goalDoor.x, player.y - goalDoor.y);
+            if (d < 42) {
+                goalDoor.reached = true;
+                win();
+            }
+        }
+    }
+
+    // ============ ОТРИСОВКА ============
+    function render() {
+        ctx.clearRect(0, 0, viewW, viewH);
+        ctx.fillStyle = '#0a0a14';
+        ctx.fillRect(0, 0, viewW, viewH);
+
+        // Камера
+        const targetCamX = player.x * scale - viewW / 2;
+        const maxCamX = WORLD_W * scale - viewW;
+        let camX = Math.max(0, Math.min(maxCamX, targetCamX));
+
+        ctx.save();
+        ctx.translate(-camX + offsetX, offsetY);
+        ctx.scale(scale, scale);
+
+        // Тайлы
+        for (let r = 0; r < WORLD_ROWS; r++) {
+            for (let c = 0; c < WORLD_COLS; c++) {
+                const x = c * TILE, y = r * TILE;
+                const t = worldMap[r][c];
+                if (t === 0) {
+                    // Пол коридора — линолеум
+                    const grad = ctx.createLinearGradient(x, y, x, y + TILE);
+                    if ((r + c) % 2 === 0) {
+                        grad.addColorStop(0, '#6b5a4a');
+                        grad.addColorStop(1, '#5a4a3a');
+                    } else {
+                        grad.addColorStop(0, '#7a6857');
+                        grad.addColorStop(1, '#6a5847');
+                    }
+                    ctx.fillStyle = grad;
+                    ctx.fillRect(x, y, TILE, TILE);
+                    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(x, y, TILE, TILE);
+                    // Крапинки линолеума
+                    ctx.fillStyle = 'rgba(0,0,0,0.08)';
+                    for (let k = 0; k < 4; k++) {
+                        const rx = x + ((k * 17 + c * 7 + r * 13) % TILE);
+                        const ry = y + ((k * 23 + c * 11 + r * 5) % TILE);
+                        ctx.beginPath();
+                        ctx.arc(rx, ry, 1.5, 0, Math.PI*2);
+                        ctx.fill();
+                    }
+                } else if (t === 2) {
+                    // Стена — панель
+                    const grad = ctx.createLinearGradient(x, y, x, y + TILE);
+                    grad.addColorStop(0, '#5b7a5b');
+                    grad.addColorStop(1, '#3a5540');
+                    ctx.fillStyle = grad;
+                    ctx.fillRect(x, y, TILE, TILE);
+                    ctx.strokeStyle = '#2a3a2a';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(x + 1, y + 1, TILE - 2, TILE - 2);
+                    // Швы панелей
+                    ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(x + TILE/2, y);
+                    ctx.lineTo(x + TILE/2, y + TILE);
+                    ctx.stroke();
+                } else if (t === 3) {
+                    // Дверь квартиры
+                    ctx.fillStyle = '#5b3a1a';
+                    ctx.fillRect(x + 4, y + 2, TILE - 8, TILE - 4);
+                    ctx.strokeStyle = '#2a1a0a';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(x + 4, y + 2, TILE - 8, TILE - 4);
+                    // Ручка
+                    ctx.fillStyle = '#ffd166';
+                    ctx.beginPath();
+                    ctx.arc(x + TILE - 14, y + TILE/2, 3, 0, Math.PI*2);
+                    ctx.fill();
+                    // Номер квартиры
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 12px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('кв', x + TILE/2, y + TILE/2);
+                }
+            }
+        }
+
+        // Дверь цели — квартира игрока (пульсирует)
+        {
+            const doorX = goalDoor.col * TILE;
+            const doorY = goalDoor.row * TILE;
+            const t = performance.now() / 400;
+            const pulse = 0.6 + Math.sin(t) * 0.3;
+            ctx.strokeStyle = `rgba(255, 209, 102, ${pulse})`;
+            ctx.lineWidth = 5;
+            ctx.strokeRect(doorX + 1, doorY + 1, TILE - 2, TILE - 2);
+
+            // Подпись "МОЯ КВАРТИРА"
+            ctx.fillStyle = 'rgba(0,0,0,0.8)';
+            ctx.fillRect(doorX - 40, doorY + TILE + 4, TILE + 80, 22);
+            ctx.fillStyle = '#ffd166';
+            ctx.font = 'bold 12px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('🏠 МОЯ КВАРТИРА', doorX + TILE/2, doorY + TILE + 15);
+        }
+
+        // Энергетики
+        for (const ed of energyDrinks) {
+            const t = performance.now() / 300;
+            const bob = Math.sin(t + ed.bobPhase) * 3;
+
+            ctx.save();
+            ctx.shadowColor = '#4ecdc4';
+            ctx.shadowBlur = 20;
+
+            ctx.fillStyle = '#4ecdc4';
+            if (ctx.roundRect) {
+                ctx.beginPath();
+                ctx.roundRect(ed.x - 7, ed.y - 14 + bob, 14, 28, 4);
+                ctx.fill();
+            } else {
+                ctx.fillRect(ed.x - 7, ed.y - 14 + bob, 14, 28);
+            }
+
+            ctx.fillStyle = '#0d5c5c';
+            ctx.fillRect(ed.x - 7, ed.y - 4 + bob, 14, 6);
+
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#ffd166';
+            ctx.beginPath();
+            ctx.moveTo(ed.x + 1, ed.y - 12 + bob);
+            ctx.lineTo(ed.x - 4, ed.y - 1 + bob);
+            ctx.lineTo(ed.x, ed.y - 1 + bob);
+            ctx.lineTo(ed.x - 2, ed.y + 12 + bob);
+            ctx.lineTo(ed.x + 4, ed.y - 2 + bob);
+            ctx.lineTo(ed.x, ed.y - 2 + bob);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        // Преследователь
+        if (chaser) {
+            drawChaser(chaser);
+        }
+
+        // Игрок
+        {
+            ctx.fillStyle = 'rgba(0,0,0,0.4)';
+            ctx.beginPath();
+            ctx.ellipse(player.x, player.y + PLAYER_RADIUS*0.7, PLAYER_RADIUS*0.9, PLAYER_RADIUS*0.35, 0, 0, Math.PI*2);
+            ctx.fill();
+
+            if (player.boostTime > 0) {
+                ctx.shadowColor = '#4ecdc4';
+                ctx.shadowBlur = 25;
+            }
+
+            ctx.fillStyle = '#4a90d9';
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, PLAYER_RADIUS, 0, Math.PI*2);
+            ctx.fill();
+            ctx.strokeStyle = '#2c5f8a';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            ctx.shadowBlur = 0;
+
+            ctx.fillStyle = '#f5d0a9';
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, PLAYER_RADIUS*0.75, 0, Math.PI*2);
+            ctx.fill();
+
+            ctx.fillStyle = '#3d2b1f';
+            ctx.beginPath();
+            ctx.arc(player.x, player.y - PLAYER_RADIUS*0.15, PLAYER_RADIUS*0.75, Math.PI, 0);
+            ctx.fill();
+
+            ctx.fillStyle = 'white';
+            ctx.beginPath();
+            ctx.arc(player.x - 4, player.y - 2, 3, 0, Math.PI*2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(player.x + 4, player.y - 2, 3, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = 'black';
+            ctx.beginPath();
+            ctx.arc(player.x - 4, player.y - 2, 1.5, 0, Math.PI*2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(player.x + 4, player.y - 2, 1.5, 0, Math.PI*2);
+            ctx.fill();
+
+            ctx.strokeStyle = '#8b5a2b';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(player.x, player.y + 5, 4, 0.1, Math.PI - 0.1);
+            ctx.stroke();
+
+            // Сосиска
+            ctx.fillStyle = '#e8c07a';
+            ctx.beginPath();
+            ctx.ellipse(player.x + PLAYER_RADIUS + 4, player.y + 4, 9, 5, -0.3, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = '#c44b3c';
+            ctx.beginPath();
+            ctx.ellipse(player.x + PLAYER_RADIUS + 4, player.y + 4, 7, 2.5, -0.3, 0, Math.PI*2);
+            ctx.fill();
+        }
+
+        ctx.restore();
+
+        drawJoystick();
+    }
+
+    function drawChaser(c) {
+        // Тень
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.beginPath();
+        ctx.ellipse(c.x, c.y + c.r*0.8, c.r*0.9, c.r*0.35, 0, 0, Math.PI*2);
+        ctx.fill();
+
+        // Заморозка — аура форы
+        if (c.frozen) {
+            const t = performance.now() / 200;
+            const alpha = 0.4 + Math.sin(t) * 0.3;
+            ctx.strokeStyle = `rgba(78, 205, 196, ${alpha})`;
+            ctx.lineWidth = 3;
+            ctx.setLineDash([6, 6]);
+            ctx.beginPath();
+            ctx.arc(c.x, c.y, c.r + 8, 0, Math.PI*2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        if (chaserType === 'bully') {
+            // Хулиган — тело
+            ctx.fillStyle = c.color;
+            ctx.beginPath();
+            ctx.arc(c.x, c.y, c.r, 0, Math.PI*2);
+            ctx.fill();
+            ctx.strokeStyle = '#5a1a15';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Кепка
+            ctx.fillStyle = '#1a1a1a';
+            ctx.beginPath();
+            ctx.arc(c.x, c.y - c.r*0.35, c.r*0.9, Math.PI, 0);
+            ctx.fill();
+            ctx.fillRect(c.x - c.r*0.9, c.y - c.r*0.35, c.r*1.8, 4);
+
+            // Эмодзи
+            ctx.font = `${c.r*1.3}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('😎', c.x, c.y + 3);
+
+            // Крик
+            if (!c.frozen) {
+                ctx.font = 'bold 10px Arial';
+                ctx.fillStyle = '#fff';
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 3;
+                ctx.strokeText('ПЛАТИ!', c.x, c.y - c.r - 12);
+                ctx.fillText('ПЛАТИ!', c.x, c.y - c.r - 12);
+            }
+        } else {
+            // Скибиди туалет — покачивается
+            const bob = Math.sin(c.bob) * 2;
+            const cx = c.x;
+            const cy = c.y + bob;
+
+            // Чаша унитаза
+            ctx.fillStyle = '#e8e8e8';
+            ctx.beginPath();
+            ctx.ellipse(cx, cy + c.r*0.4, c.r*1.1, c.r*0.7, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.strokeStyle = '#888';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Бачок
+            ctx.fillStyle = '#d0d0d0';
+            ctx.fillRect(cx - c.r*0.8, cy - c.r*0.8, c.r*1.6, c.r*0.8);
+            ctx.strokeStyle = '#888';
+            ctx.strokeRect(cx - c.r*0.8, cy - c.r*0.8, c.r*1.6, c.r*0.8);
+
+            // Отверстие
+            ctx.fillStyle = '#1a1a1a';
+            ctx.beginPath();
+            ctx.ellipse(cx, cy + c.r*0.3, c.r*0.5, c.r*0.25, 0, 0, Math.PI*2);
+            ctx.fill();
+
+            // Голова — вылезает из бачка
+            ctx.fillStyle = '#f5d0a9';
+            ctx.beginPath();
+            ctx.arc(cx, cy - c.r*0.5, c.r*0.55, 0, Math.PI*2);
+            ctx.fill();
+            ctx.strokeStyle = '#8b5a2b';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Глаза — безумные
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(cx - 4, cy - c.r*0.55, 3.5, 0, Math.PI*2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(cx + 4, cy - c.r*0.55, 3.5, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(cx - 4, cy - c.r*0.55, 2, 0, Math.PI*2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(cx + 4, cy - c.r*0.55, 2, 0, Math.PI*2);
+            ctx.fill();
+
+            // Рот — открытый
+            ctx.fillStyle = '#4a1010';
+            ctx.beginPath();
+            ctx.ellipse(cx, cy - c.r*0.25, 5, 4, 0, 0, Math.PI*2);
+            ctx.fill();
+
+            // Крик
+            if (!c.frozen) {
+                ctx.font = 'bold 9px Arial';
+                ctx.fillStyle = '#fff';
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 3;
+                ctx.strokeText('SKIBIDI!', cx, cy - c.r - 12);
+                ctx.fillText('SKIBIDI!', cx, cy - c.r - 12);
+            }
+        }
+    }
+
+    function drawJoystick() {
+        if (gameState !== 'playing') return;
+        const { baseX, baseY, baseRadius, knobX, knobY, knobRadius, active } = joystick;
+
+        ctx.beginPath();
+        ctx.arc(baseX, baseY, baseRadius, 0, Math.PI*2);
+        ctx.fillStyle = active ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.07)';
+        ctx.fill();
+        ctx.strokeStyle = active ? 'rgba(255,209,102,0.7)' : 'rgba(255,255,255,0.25)';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(baseX - baseRadius*0.7, baseY);
+        ctx.lineTo(baseX + baseRadius*0.7, baseY);
+        ctx.moveTo(baseX, baseY - baseRadius*0.7);
+        ctx.lineTo(baseX, baseY + baseRadius*0.7);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(knobX, knobY, knobRadius, 0, Math.PI*2);
+        const grad = ctx.createRadialGradient(knobX - knobRadius*0.3, knobY - knobRadius*0.3, 2, knobX, knobY, knobRadius);
+        grad.addColorStop(0, '#ffe08a');
+        grad.addColorStop(1, '#e6a817');
+        ctx.fillStyle = grad;
+        ctx.fill();
+        ctx.strokeStyle = '#8a6210';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+    }
+
+    // ============ УПРАВЛЕНИЕ ============
+    let keys = { left:false, right:false, up:false, down:false };
+    window.addEventListener('keydown', (e) => {
+        const k = e.key.toLowerCase();
+        if (k === 'arrowleft' || k === 'a' || k === 'ф') { keys.left = true; e.preventDefault(); }
+        if (k === 'arrowright' || k === 'd' || k === 'в') { keys.right = true; e.preventDefault(); }
+        if (k === 'arrowup' || k === 'w' || k === 'ц') { keys.up = true; e.preventDefault(); }
+        if (k === 'arrowdown' || k === 's' || k === 'ы') { keys.down = true; e.preventDefault(); }
+        if (k === ' ' || k === 'enter') {
+            if (gameState === 'intro' && dialogueActive) advanceDialogue();
+        }
+    });
+    window.addEventListener('keyup', (e) => {
+        const k = e.key.toLowerCase();
+        if (k === 'arrowleft' || k === 'a' || k === 'ф') keys.left = false;
+        if (k === 'arrowright' || k === 'd' || k === 'в') keys.right = false;
+        if (k === 'arrowup' || k === 'w' || k === 'ц') keys.up = false;
+        if (k === 'arrowdown' || k === 's' || k === 'ы') keys.down = false;
+    });
+
+    function getCanvasCoords(clientX, clientY) {
+        const rect = canvas.getBoundingClientRect();
+        return { x: clientX - rect.left, y: clientY - rect.top };
+    }
+
+    function isPointInJoystickArea(x, y) {
+        const zoneR = joystick.baseRadius * 1.9;
+        return Math.hypot(x - joystick.baseX, y - joystick.baseY) < zoneR;
+    }
+
+    canvas.addEventListener('touchstart', (e) => {
+        if (gameState === 'intro' && dialogueActive) {
+            advanceDialogue();
+            e.preventDefault();
+            return;
+        }
+        if (gameState !== 'playing') return;
+        for (let i = 0; i < e.changedTouches.length; i++) {
+            const t = e.changedTouches[i];
+            const p = getCanvasCoords(t.clientX, t.clientY);
+            if (!joystick.active && isPointInJoystickArea(p.x, p.y)) {
+                joystick.active = true;
+                joystick.touchId = t.identifier;
+                joystickDirFromPoint(p.x, p.y);
+                e.preventDefault();
+                break;
+            }
+        }
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', (e) => {
+        if (!joystick.active) return;
+        for (let i = 0; i < e.changedTouches.length; i++) {
+            const t = e.changedTouches[i];
+            if (t.identifier === joystick.touchId) {
+                const p = getCanvasCoords(t.clientX, t.clientY);
+                joystickDirFromPoint(p.x, p.y);
+                e.preventDefault();
+                break;
+            }
+        }
+    }, { passive: false });
+
+    function handleTouchEnd(e) {
+        for (let i = 0; i < e.changedTouches.length; i++) {
+            const t = e.changedTouches[i];
+            if (t.identifier === joystick.touchId) {
+                resetJoystick();
+                e.preventDefault();
+                break;
+            }
+        }
+    }
+    canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+    canvas.addEventListener('touchcancel', handleTouchEnd, { passive: false });
+
+    let mouseDown = false;
+    canvas.addEventListener('mousedown', (e) => {
+        if (gameState === 'intro' && dialogueActive) {
+            advanceDialogue();
+            return;
+        }
+        if (gameState !== 'playing') return;
+        const p = getCanvasCoords(e.clientX, e.clientY);
+        if (isPointInJoystickArea(p.x, p.y)) {
+            mouseDown = true;
+            joystick.active = true;
+            joystick.touchId = 'mouse';
+            joystickDirFromPoint(p.x, p.y);
+            e.preventDefault();
+        }
+    });
+    canvas.addEventListener('mousemove', (e) => {
+        if (!mouseDown) return;
+        const p = getCanvasCoords(e.clientX, e.clientY);
+        joystickDirFromPoint(p.x, p.y);
+    });
+    window.addEventListener('mouseup', () => {
+        if (mouseDown) {
+            mouseDown = false;
+            resetJoystick();
+        }
+    });
+
+    canvas.addEventListener('contextmenu', e => e.preventDefault());
+    document.addEventListener('gesturestart', e => e.preventDefault());
+
+    // ============ КНОПКИ ============
+    startBtn.addEventListener('click', beginGame);
+    retryBtn.addEventListener('click', () => { showScreen(null); beginGame(); });
+    winRetryBtn.addEventListener('click', () => { showScreen(null); beginGame(); });
+
+    // ============ ИНИЦИАЛИЗАЦИЯ ============
+    buildWorld();
+    requestAnimationFrame(() => {
+        resize();
+        resetGame();
+        showScreen('start');
+    });
+
+})();
+</script>
+</body>
+  </html>
