@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Школьник в буфете без денег - Игра</title>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; user-select:none; -webkit-tap-highlight-color:transparent; }
+    html, body {
+        width:100%; height:100%;
+        background:#0f0f1a;
+        font-family:'Segoe UI',Arial,sans-serif;
+        overflow:hidden; touch-action:none;
+        overscroll-behavior:none;
+    }
+    #game-container {
+        position:fixed; inset:0;
+        width:100vw; height:100vh;
+        height:100dvh; /* учитываем мобильные панели */
+        background:#16213e;
+        overflow:hidden;
+    }
+    canvas { display:block; width:100%; height:100%; }
+
+    .overlay {
+        position:absolute; inset:0;
+        display:flex; flex-direction:column;
+        justify-content:center; align-items:center;
+        background:rgba(0,0,0,.88); color:#fff;
+        text-align:center; padding:24px; z-index:10;
+        backdrop-filter:blur(4px); transition:opacity .3s;
+    }
+    .overlay.hidden { opacity:0; pointer-events:none; }
+    h1 { font-size:clamp(26px,7vw,44px); margin-bottom:12px; color:#ffd166;
+         text-shadow:0 0 20px rgba(255,209,102,.5); }
+    p  { font-size:clamp(13px,3.6vw,18px); margin-bottom:12px; line-height:1.5; color:#ddd;
+         max-width:600px; }
+    button {
+        background:#ffd166; border:none; border-radius:50px;
+        padding:14px 40px; font-size:clamp(15px,4.5vw,22px);
+        font-weight:bold; color:#1a1a2e; cursor:pointer;
+        box-shadow:0 6px 0 #b8943e; margin-top:8px;
+        transition:transform .1s, box-shadow .15s;
+    }
+    button:active { transform:translateY(4px); box-shadow:0 2px 0 #b8943e; }
+
+    .timer-bar {
+        position:absolute; top:calc(env(safe-area-inset-top, 0px) + 10px);
+        left:5%; width:90%; height:10px;
+        background:rgba(255,255,255,.15); border-radius:10px;
+        overflow:hidden; z-index:5; pointer-events:none;
+    }
+    .timer-fill {
+        height:100%; width:100%;
+        background:linear-gradient(90deg,#06d6a0,#ffd166,#ef476f);
+        transition:width .1s linear;
+    }
+    .timer-text {
+        position:absolute; top:calc(env(safe-area-inset-top, 0px) + 26px);
+        left:50%; transform:translateX(-50%);
+        color:#fff; font-weight:bold; font-size:clamp(13px,3.6vw,18px);
+        text-shadow:0 2px 8px rgba(0,0,0,.9); z-index:5; pointer-events:none;
+    }
+    .hud-info {
+        position:absolute; top:calc(env(safe-area-inset-top, 0px) + 26px);
+        left:calc(env(safe-area-inset-left, 0px) + 14px);
+        color:#ffd166; font-weight:bold; font-size:clamp(12px,3.2vw,16px);
+        text-shadow:0 2px 8px rgba(0,0,0,.9); z-index:5; pointer-events:none;
+    }
+    .hud-danger {
+        position:absolute;
+        top:calc(env(safe-area-inset-top, 0px) + 26px);
+        right:calc(env(safe-area-inset-right, 0px) + 14px);
+        color:#ff6b6b; font-weight:bold; font-size:clamp(12px,3.2vw,16px);
+        text-shadow:0 2px 8px rgba(0,0,0,.9); z-index:5; pointer-events:none;
+        display:none;
+    }
+    .hud-danger.show { display:block; animation:pulse .5s infinite alternate; }
+    @keyframes pulse { from { opacity:1; } to { opacity:.4; } }
+
+    .death-screen { background:rgba(70,0,0,.93); }
+    .win-screen   { background:rgba(0,70,35,.93); }
+    .emoji-big { font-size:clamp(44px,14vw,76px); margin-bottom:8px; }
+</style>
+</head>
+<body>
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+
+    <div class="timer-bar"><div class="timer-fill" id="timerFill"></div></div>
+    <div class="timer-text" id="timerText">5:00</div>
+    <div class="hud-info" id="moneyHud">💰 0₽</div>
+    <div class="hud-danger" id="dangerHud">⚠️ ПРОДАВЩИЦА БЛИЗКО!</div>
+
+    <div class="overlay" id="startScreen">
+        <div class="emoji-big">🥪</div>
+        <h1>Школьник в буфете без денег</h1>
+        <p>Ты голодный школьник без денег.<br>
+           Проберись через лабиринт школы<br>
+           до буфета за 5 минут!</p>
+        <p style="color:#ff8a8a;">Продавщица 🍽️ всегда гонится за тобой!<br>
+           Директор 👨‍💼 и уборщица 🧹 тоже опасны.</p>
+        <p style="font-size:.9em;color:#aaa;">Управление: джойстик (левый нижний угол)<br>или WASD / стрелки</p>
+        <button id="startBtn">ПОБЕЖАЛИ! 🏃</button>
+    </div>
+
+    <div class="overlay death-screen hidden" id="deathScreen">
+        <div class="emoji-big">💀</div>
+        <h1>Ты не дожил...</h1>
+        <p id="deathReason">Время вышло</p>
+        <button id="retryBtn">Попробовать снова</button>
+    </div>
+
+    <div class="overlay win-screen hidden" id="winScreen">
+        <div class="emoji-big">🌭</div>
+        <h1>Ты добрался!</h1>
+        <p>Сосиска в тесте спасена!<br>Ты сыт и счастлив.</p>
+        <button id="winRetryBtn">Играть снова</button>
+    </div>
+</div>
+
+<script>
+(function(){
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const timerFill = document.getElementById('timerFill');
+    const timerText = document.getElementById('timerText');
+    const moneyHud = document.getElementById('moneyHud');
+    const dangerHud = document.getElementById('dangerHud');
+
+    const startScreen = document.getElementById('startScreen');
+    const deathScreen = document.getElementById('deathScreen');
+    const winScreen = document.getElementById('winScreen');
+    const deathReason = document.getElementById('deathReason');
+    const startBtn = document.getElementById('startBtn');
+    const retryBtn = document.getElementById('retryBtn');
+    const winRetryBtn = document.getElementById('winRetryBtn');
+
+    // ============ КОНСТАНТЫ ============
+    const GAME_DURATION = 300; // 5 минут
+    const PLAYER_RADIUS = 14;
+    const PLAYER_SPEED = 3.4;
+    const ENEMY_RADIUS = 15;
+    const TILE = 60;
+
+    // ============ СОСТОЯНИЕ ============
+    let gameState = 'start';
+    let timeLeft = GAME_DURATION;
+    let lastTimestamp = 0;
+    let animationId = null;
+
+    let WORLD_W = 0, WORLD_H = 0;
+    let scale = 1, offsetX = 0, offsetY = 0;
+    let viewW = 0, viewH = 0;
+
+    let maze = [];
+    let MAZE_COLS = 15, MAZE_ROWS = 13;
+
+    let player = { x:0, y:0, money:0 };
+    let enemies = [];
+    let goal = { x:0, y:0, r:18, reached:false };
+    let coins = [];
+
+    // ============ ДЖОЙСТИК ============
+    const joystick = {
+        baseX: 0, baseY: 0,
+        baseRadius: 65,
+        knobX: 0, knobY: 0,
+        knobRadius: 28,
+        active: false,
+        touchId: null,
+        dirX: 0, dirY: 0
+    };
+
+    function updateJoystickLayout() {
+        const safeBottom = 80;
+        const safeLeft = 80;
+        joystick.baseX = safeLeft;
+        joystick.baseY = viewH - safeBottom;
+        joystick.baseRadius = Math.min(70, Math.min(viewW, viewH) * 0.14);
+        joystick.knobRadius = joystick.baseRadius * 0.45;
+        if (!joystick.active) {
+            joystick.knobX = joystick.baseX;
+            joystick.knobY = joystick.baseY;
+        }
+    }
+
+    function joystickDirFromPoint(px, py) {
+        let dx = px - joystick.baseX;
+        let dy = py - joystick.baseY;
+        const dist = Math.hypot(dx, dy);
+        const maxDist = joystick.baseRadius;
+        if (dist < 6) {
+            joystick.dirX = 0; joystick.dirY = 0;
+            joystick.knobX = joystick.baseX; joystick.knobY = joystick.baseY;
+            return;
+        }
+        const clampedDist = Math.min(dist, maxDist);
+        const nx = dx / dist, ny = dy / dist;
+        joystick.knobX = joystick.baseX + nx * clampedDist;
+        joystick.knobY = joystick.baseY + ny * clampedDist;
+        // Нормализованное значение с "мёртвой зоной"
+        const mag = Math.min(dist / maxDist, 1);
+        joystick.dirX = nx * mag;
+        joystick.dirY = ny * mag;
+    }
+
+    function resetJoystick() {
+        joystick.active = false;
+        joystick.touchId = null;
+        joystick.dirX = 0; joystick.dirY = 0;
+        joystick.knobX = joystick.baseX;
+        joystick.knobY = joystick.baseY;
+    }
+
+    // ============ ЛАБИРИНТ ============
+    const MAZE_TEMPLATE = [
+        "###############",
+        "#S    #       #",
+        "# ### # ##### #",
+        "# #   #     # #",
+        "# # ##### # # #",
+        "# #     # # # #",
+        "# ##### # # # #",
+        "#     # # # # #",
+        "##### # # # # #",
+        "#   # #   # # #",
+        "# # # ##### # #",
+        "# #   #     #G#",
+        "###############"
+    ];
+
+    function buildMaze() {
+        MAZE_ROWS = MAZE_TEMPLATE.length;
+        MAZE_COLS = MAZE_TEMPLATE[0].length;
+        maze = [];
+        for (let r = 0; r < MAZE_ROWS; r++) {
+            let row = [];
+            for (let c = 0; c < MAZE_COLS; c++) {
+                row.push(MAZE_TEMPLATE[r][c] === '#' ? 1 : 0);
+            }
+            maze.push(row);
+        }
+    }
+
+    function getMazeEntities() {
+        const res = { start:null, goal:null, enemies:[] };
+        for (let r = 0; r < MAZE_ROWS; r++) {
+            for (let c = 0; c < MAZE_COLS; c++) {
+                const ch = MAZE_TEMPLATE[r][c];
+                const cx = c * TILE + TILE/2;
+                const cy = r * TILE + TILE/2;
+                if (ch === 'S') res.start = { x:cx, y:cy };
+                else if (ch === 'G') res.goal = { x:cx, y:cy };
+                else if (ch === 'D') res.enemies.push({ x:cx, y:cy, type:'director' });
+                else if (ch === 'U') res.enemies.push({ x:cx, y:cy, type:'janitor' });
+                else if (ch === 'P') res.enemies.push({ x:cx, y:cy, type:'seller' });
+            }
+        }
+        // Если продавщицы нет в шаблоне — ставим её подальше от старта
+        if (!res.enemies.some(e => e.type === 'seller')) {
+            // Ищем клетку подальше от старта
+            let best = null, bestDist = -1;
+            for (let r = 1; r < MAZE_ROWS - 1; r++) {
+                for (let c = 1; c < MAZE_COLS - 1; c++) {
+                    if (maze[r][c] === 0 && res.start) {
+                        const cx = c*TILE + TILE/2;
+                        const cy = r*TILE + TILE/2;
+                        const d = Math.hypot(cx - res.start.x, cy - res.start.y);
+                        if (d > bestDist) { bestDist = d; best = { x:cx, y:cy }; }
+                    }
+                }
+            }
+            if (best) res.enemies.push({ x: best.x, y: best.y, type:'seller' });
+        }
+        if (!res.enemies.some(e => e.type === 'director')) {
+            res.enemies.push({ x: 7*TILE+TILE/2, y: 5*TILE+TILE/2, type:'director' });
+        }
+        if (!res.enemies.some(e => e.type === 'janitor')) {
+            res.enemies.push({ x: 5*TILE+TILE/2, y: 9*TILE+TILE/2, type:'janitor' });
+        }
+        return res;
+    }
+
+    // ============ РАЗМЕРЫ ============
+    function resize() {
+        const rect = document.getElementById('game-container').getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+
+        viewW = rect.width;
+        viewH = rect.height;
+        canvas.width = viewW * dpr;
+        canvas.height = viewH * dpr;
+        canvas.style.width = viewW + 'px';
+        canvas.style.height = viewH + 'px';
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        WORLD_W = MAZE_COLS * TILE;
+        WORLD_H = MAZE_ROWS * TILE;
+
+        // Вписываем мир в экран (с сохранением пропорций)
+        // Учитываем место для джойстика снизу — оставим поле ровным по центру
+        const sx = viewW / WORLD_W;
+        const sy = viewH / WORLD_H;
+        scale = Math.min(sx, sy);
+        offsetX = (viewW - WORLD_W * scale) / 2;
+        offsetY = (viewH - WORLD_H * scale) / 2;
+
+        updateJoystickLayout();
+    }
+
+    window.addEventListener('resize', () => { resize(); });
+    window.addEventListener('orientationchange', () => {
+        setTimeout(resize, 250);
+    });
+
+    // ============ СТЕНЫ ============
+    function isWall(cx, cy) {
+        const c = Math.floor(cx / TILE);
+        const r = Math.floor(cy / TILE);
+        if (r < 0 || r >= MAZE_ROWS || c < 0 || c >= MAZE_COLS) return true;
+        return maze[r][c] === 1;
+    }
+
+    function circleWallCollision(x, y, radius) {
+        const points = 8;
+        for (let i = 0; i < points; i++) {
+            const a = (i / points) * Math.PI * 2;
+            const px = x + Math.cos(a) * radius;
+            const py = y + Math.sin(a) * radius;
+            if (isWall(px, py)) return true;
+        }
+        return false;
+    }
+
+    function moveWithCollision(ent, dx, dy, radius) {
+        let nx = ent.x + dx;
+        if (!circleWallCollision(nx, ent.y, radius)) ent.x = nx;
+        let ny = ent.y + dy;
+        if (!circleWallCollision(ent.x, ny, radius)) ent.y = ny;
+    }
+
+    // ============ ВРАГИ ============
+    function createEnemies(defs) {
+        enemies = defs.map(d => {
+            let speed, color, name, emoji;
+            if (d.type === 'director') { speed = 1.7; color = '#8e44ad'; name='Директор'; emoji='👨‍💼'; }
+            else if (d.type === 'janitor') { speed = 0.7; color = '#27ae60'; name='Уборщица'; emoji='🧹'; }
+            else { speed = 3.0; color = '#e67e22'; name='Продавщица'; emoji='🍽️'; } // БЫСТРЕЕ игрока
+            return {
+                x: d.x, y: d.y,
+                r: ENEMY_RADIUS,
+                speed,
+                type: d.type,
+                color, name, emoji,
+                dir: { x: 0, y: 0 },
+                changeTimer: 0,
+                // Для плавности
+                vx: 0, vy: 0
+            };
+        });
+    }
+
+    // BFS — кратчайший путь от (startCx,startCy) к (targetCx,targetCy)
+    function bfsPath(startCx, startCy, targetCx, targetCy) {
+        if (startCx === targetCx && startCy === targetCy) return [];
+        const key = (c, r) => r * MAZE_COLS + c;
+        const visited = new Uint8Array(MAZE_COLS * MAZE_ROWS);
+        const parent = new Map();
+        const queue = [{ c: startCx, r: startCy }];
+        visited[key(startCx, startCy)] = 1;
+        const dirs = [ [1,0], [-1,0], [0,1], [0,-1] ];
+        let found = false;
+        while (queue.length) {
+            const cur = queue.shift();
+            if (cur.c === targetCx && cur.r === targetCy) { found = true; break; }
+            for (const [dx, dy] of dirs) {
+                const nc = cur.c + dx, nr = cur.r + dy;
+                if (nc < 0 || nc >= MAZE_COLS || nr < 0 || nr >= MAZE_ROWS) continue;
+                if (maze[nr][nc] === 1) continue;
+                if (visited[key(nc, nr)]) continue;
+                visited[key(nc, nr)] = 1;
+                parent.set(key(nc, nr), { c: cur.c, r: cur.r });
+                queue.push({ c: nc, r: nr });
+            }
+        }
+        if (!found) return null;
+        // Восстанавливаем путь
+        const path = [];
+        let cur = { c: targetCx, r: targetCy };
+        while (!(cur.c === startCx && cur.r === startCy)) {
+            path.push(cur);
+            const p = parent.get(key(cur.c, cur.r));
+            if (!p) break;
+            cur = p;
+        }
+        path.reverse();
+        return path;
+    }
+
+    function moveEnemy(e, dt) {
+        e.changeTimer -= dt;
+
+        // ПРОДАВЩИЦА — всегда агрессивное преследование по BFS
+        if (e.type === 'seller') {
+            if (e.changeTimer <= 0) {
+                e.changeTimer = 0.15; // пересчёт 6-7 раз в секунду — очень агрессивно
+                const ecx = Math.floor(e.x / TILE);
+                const ecy = Math.floor(e.y / TILE);
+                const pcx = Math.floor(player.x / TILE);
+                const pcy = Math.floor(player.y / TILE);
+                const path = bfsPath(ecx, ecy, pcx, pcy);
+                if (path && path.length > 0) {
+                    // Целимся не в центр следующей клетки, а прямо в игрока,
+                    // если игрок в той же клетке, что и враг — идём напрямую
+                    let tx, ty;
+                    if (path.length === 1) {
+                        tx = player.x; ty = player.y;
+                    } else {
+                        tx = path[0].c * TILE + TILE/2;
+                        ty = path[0].r * TILE + TILE/2;
+                    }
+                    const dx = tx - e.x;
+                    const dy = ty - e.y;
+                    const d = Math.hypot(dx, dy) || 1;
+                    e.dir = { x: dx / d, y: dy / d };
+                } else {
+                    // Прямая линия, если путь не найден
+                    const dx = player.x - e.x;
+                    const dy = player.y - e.y;
+                    const d = Math.hypot(dx, dy) || 1;
+                    e.dir = { x: dx / d, y: dy / d };
+                }
+            }
+        } else {
+            if (e.changeTimer <= 0) {
+                e.changeTimer = (e.type === 'director' ? 0.8 : 1.8) + Math.random() * 1.2;
+                const dirs = [ {x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1} ];
+                e.dir = dirs[Math.floor(Math.random() * dirs.length)];
+            }
+        }
+
+        const sp = e.speed * dt * 60;
+        const dx = e.dir.x * sp;
+        const dy = e.dir.y * sp;
+
+        const oldX = e.x, oldY = e.y;
+        moveWithCollision(e, dx, dy, e.r);
+
+        // Если застрял — для продавщицы форсируем пересчёт, для остальных — смена направления
+        if (Math.abs(e.x - oldX) < 0.05 && Math.abs(e.y - oldY) < 0.05) {
+            if (e.type === 'seller') {
+                e.changeTimer = 0;
+                // Микро-толчок для обхода угла
+                const dirs = [ {x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1} ];
+                for (const d of dirs) {
+                    const tx = e.x + d.x * 4;
+                    const ty = e.y + d.y * 4;
+                    if (!circleWallCollision(tx, ty, e.r)) {
+                        e.x = tx; e.y = ty;
+                        break;
+                    }
+                }
+            } else {
+                const dirs = [ {x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1} ];
+                e.dir = dirs[Math.floor(Math.random() * dirs.length)];
+                e.changeTimer = 0.5;
+            }
+        }
+    }
+
+    // ============ ИГРОК ============
+    function updatePlayer(dt) {
+        let dx = 0, dy = 0;
+
+        if (keys.left) dx -= 1;
+        if (keys.right) dx += 1;
+        if (keys.up) dy -= 1;
+        if (keys.down) dy += 1;
+
+        if (joystick.dirX !== 0 || joystick.dirY !== 0) {
+            dx = joystick.dirX;
+            dy = joystick.dirY;
+        }
+
+        const len = Math.hypot(dx, dy);
+        if (len > 1) { dx /= len; dy /= len; }
+
+        const sp = PLAYER_SPEED * dt * 60;
+        moveWithCollision(player, dx * sp, dy * sp, PLAYER_RADIUS);
+    }
+
+    // ============ ЛОГИКА ============
+    function spawnCoins() {
+        coins = [];
+        let placed = 0;
+        let attempts = 60;
+        while (placed < 10 && attempts > 0) {
+            attempts--;
+            const c = 1 + Math.floor(Math.random() * (MAZE_COLS - 2));
+            const r = 1 + Math.floor(Math.random() * (MAZE_ROWS - 2));
+            if (maze[r] && maze[r][c] === 0) {
+                const cx = c*TILE + TILE/2;
+                const cy = r*TILE + TILE/2;
+                const nearPlayer = Math.hypot(cx - player.x, cy - player.y) < TILE*2;
+                const nearGoal = Math.hypot(cx - goal.x, cy - goal.y) < TILE*1.5;
+                const nearCoin = coins.some(cc => Math.hypot(cc.x - cx, cc.y - cy) < TILE);
+                if (!nearPlayer && !nearGoal && !nearCoin) {
+                    coins.push({ x: cx, y: cy });
+                    placed++;
+                }
+            }
+        }
+    }
+
+    function resetGame() {
+        buildMaze();
+        resize();
+
+        const ents = getMazeEntities();
+        const start = ents.start || { x: TILE*1.5, y: TILE*1.5 };
+        player.x = start.x;
+        player.y = start.y;
+        player.money = 0;
+
+        goal.x = ents.goal.x;
+        goal.y = ents.goal.y;
+        goal.r = 18;
+        goal.reached = false;
+
+        createEnemies(ents.enemies);
+        spawnCoins();
+
+        timeLeft = GAME_DURATION;
+        updateTimerUI();
+        updateMoneyHUD();
+        resetJoystick();
+    }
+
+    function updateTimerUI() {
+        const pct = (timeLeft / GAME_DURATION) * 100;
+        timerFill.style.width = pct + '%';
+        const mins = Math.floor(timeLeft / 60);
+        const secs = Math.floor(timeLeft % 60);
+        timerText.textContent = `${mins}:${secs.toString().padStart(2,'0')}`;
+    }
+
+    function updateMoneyHUD() {
+        moneyHud.textContent = `💰 ${Math.floor(player.money)}₽`;
+    }
+
+    function showScreen(screen) {
+        startScreen.classList.add('hidden');
+        deathScreen.classList.add('hidden');
+        winScreen.classList.add('hidden');
+        if (screen === 'start') startScreen.classList.remove('hidden');
+        if (screen === 'death') deathScreen.classList.remove('hidden');
+        if (screen === 'win') winScreen.classList.remove('hidden');
+    }
+
+    function die(reason) {
+        if (gameState !== 'playing') return;
+        gameState = 'dead';
+        deathReason.textContent = reason;
+        showScreen('death');
+        if (animationId) cancelAnimationFrame(animationId);
+    }
+
+    function win() {
+        if (gameState !== 'playing') return;
+        gameState = 'win';
+        showScreen('win');
+        if (animationId) cancelAnimationFrame(animationId);
+    }
+
+    function startGame() {
+        resetGame();
+        gameState = 'playing';
+        showScreen(null);
+        lastTimestamp = performance.now();
+        if (animationId) cancelAnimationFrame(animationId);
+        animationId = requestAnimationFrame(gameLoop);
+    }
+
+    function gameLoop(timestamp) {
+        if (gameState !== 'playing') return;
+        const dt = Math.min((timestamp - lastTimestamp) / 1000, 0.05);
+        lastTimestamp = timestamp;
+
+        update(dt);
+        render();
+
+        animationId = requestAnimationFrame(gameLoop);
+    }
+
+    function update(dt) {
+        timeLeft -= dt;
+        if (timeLeft <= 0) {
+            timeLeft = 0;
+            updateTimerUI();
+            die('Время вышло. Ты умер от голода.');
+            return;
+        }
+        updateTimerUI();
+
+        updatePlayer(dt);
+        for (const e of enemies) moveEnemy(e, dt);
+
+        // Индикатор близости продавщицы
+        const seller = enemies.find(e => e.type === 'seller');
+        if (seller) {
+            const d = Math.hypot(seller.x - player.x, seller.y - player.y);
+            if (d < 200) dangerHud.classList.add('show');
+            else dangerHud.classList.remove('show');
+        }
+
+        // Столкновение с врагами
+        for (const e of enemies) {
+            const dx = player.x - e.x;
+            const dy = player.y - e.y;
+            if (Math.hypot(dx, dy) < PLAYER_RADIUS + e.r) {
+                if (e.type === 'seller') {
+                    if (player.money > 0) {
+                        player.money = 0;
+                        updateMoneyHUD();
+                        const ents = getMazeEntities();
+                        player.x = ents.start.x;
+                        player.y = ents.start.y;
+                        resetJoystick();
+                        // Отодвигаем продавщицу в самую дальнюю точку
+                        let best = null, bestDist = -1;
+                        for (let r = 1; r < MAZE_ROWS - 1; r++) {
+                            for (let c = 1; c < MAZE_COLS - 1; c++) {
+                                if (maze[r][c] === 0) {
+                                    const cx = c*TILE + TILE/2;
+                                    const cy = r*TILE + TILE/2;
+                                    const dd = Math.hypot(cx - player.x, cy - player.y);
+                                    if (dd > bestDist) { bestDist = dd; best = { x:cx, y:cy }; }
+                                }
+                            }
+                        }
+                        if (best) { e.x = best.x; e.y = best.y; }
+                        return;
+                    } else {
+                        die('Продавщица: "Нет денег — нет сосиски!" Тебя выгнали умирать с голоду.');
+                        return;
+                    }
+                } else if (e.type === 'director') {
+                    die('Директор поймал тебя! "Ты почему не на уроке?!" Ты умер в наказании от голода.');
+                    return;
+                } else {
+                    die('Уборщица замахнулась шваброй: "Не бегай по коридорам!" Тебя выгнали умирать с голоду.');
+                    return;
+                }
+            }
+        }
+
+        // Монетки
+        for (let i = coins.length - 1; i >= 0; i--) {
+            const c = coins[i];
+            if (Math.hypot(player.x - c.x, player.y - c.y) < PLAYER_RADIUS + 8) {
+                player.money += 10;
+                coins.splice(i, 1);
+                updateMoneyHUD();
+            }
+        }
+
+        // Цель
+        if (!goal.reached) {
+            if (Math.hypot(player.x - goal.x, player.y - goal.y) < PLAYER_RADIUS + goal.r) {
+                goal.reached = true;
+                win();
+            }
+        }
+    }
+
+    // ============ ОТРИСОВКА ============
+    function render() {
+        ctx.clearRect(0, 0, viewW, viewH);
+
+        // Фон вокруг мира (чёрные поля)
+        ctx.fillStyle = '#0a0a14';
+        ctx.fillRect(0, 0, viewW, viewH);
+
+        ctx.save();
+        ctx.translate(offsetX, offsetY);
+        ctx.scale(scale, scale);
+
+        // Клетки
+        for (let r = 0; r < MAZE_ROWS; r++) {
+            for (let c = 0; c < MAZE_COLS; c++) {
+                const x = c*TILE, y = r*TILE;
+                if (maze[r][c] === 1) {
+                    const grad = ctx.createLinearGradient(x, y, x, y+TILE);
+                    grad.addColorStop(0, '#5b6b8c');
+                    grad.addColorStop(1, '#3a4a6b');
+                    ctx.fillStyle = grad;
+                    ctx.fillRect(x, y, TILE, TILE);
+                    ctx.strokeStyle = '#2a3550';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(x+1, y+1, TILE-2, TILE-2);
+                    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+                    ctx.fillRect(x + 8, y + 8, TILE - 16, TILE/2 - 10);
+                    ctx.fillRect(x + 8, y + TILE/2 + 2, TILE - 16, TILE/2 - 10);
+                    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                    ctx.fillRect(x + TILE/2 - 1, y + 8, 2, TILE - 16);
+                } else {
+                    ctx.fillStyle = ((r + c) % 2 === 0) ? '#2d3a52' : '#28344a';
+                    ctx.fillRect(x, y, TILE, TILE);
+                    ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(x, y, TILE, TILE);
+                }
+            }
+        }
+
+        // Монетки
+        for (const c of coins) {
+            const t = performance.now() / 400;
+            const bob = Math.sin(t + c.x) * 2;
+            ctx.fillStyle = '#ffd166';
+            ctx.beginPath();
+            ctx.arc(c.x, c.y + bob, 7, 0, Math.PI*2);
+            ctx.fill();
+            ctx.strokeStyle = '#b8943e';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.fillStyle = '#b8943e';
+            ctx.font = 'bold 9px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('₽', c.x, c.y + bob + 0.5);
+        }
+
+        // Цель
+        if (!goal.reached) {
+            const t = performance.now() / 300;
+            const pulse = 1 + Math.sin(t) * 0.08;
+            ctx.save();
+            ctx.translate(goal.x, goal.y);
+            ctx.scale(pulse, pulse);
+            ctx.shadowColor = '#ffd166';
+            ctx.shadowBlur = 30;
+            ctx.fillStyle = 'rgba(255,209,102,0.25)';
+            ctx.beginPath();
+            ctx.arc(0, 0, 26, 0, Math.PI*2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#e8e8e8';
+            ctx.beginPath();
+            ctx.arc(0, 0, 20, 0, Math.PI*2);
+            ctx.fill();
+            ctx.strokeStyle = '#bbb';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.fillStyle = '#e8c07a';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 15, 11, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = '#c44b3c';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 12, 6, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = 'rgba(255,255,255,0.5)';
+            ctx.beginPath();
+            ctx.ellipse(-4, -3, 4, 2, -0.4, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = 'rgba(255,255,255,0.35)';
+            for (let i = 0; i < 3; i++) {
+                const py = -22 - i*6 + Math.sin(t*2 + i) * 3;
+                ctx.beginPath();
+                ctx.arc(-6 + i*6, py, 4 - i*0.5, 0, Math.PI*2);
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+
+        // Враги
+        for (const e of enemies) {
+            // Красная линия преследования от продавщицы
+            if (e.type === 'seller') {
+                ctx.strokeStyle = 'rgba(255,80,80,0.45)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([6,6]);
+                ctx.beginPath();
+                ctx.moveTo(e.x, e.y);
+                ctx.lineTo(player.x, player.y);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            ctx.fillStyle = 'rgba(0,0,0,0.35)';
+            ctx.beginPath();
+            ctx.ellipse(e.x, e.y + e.r*0.8, e.r*0.9, e.r*0.35, 0, 0, Math.PI*2);
+            ctx.fill();
+
+            ctx.fillStyle = e.color;
+            ctx.beginPath();
+            ctx.arc(e.x, e.y, e.r, 0, Math.PI*2);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            ctx.font = `${e.r*1.5}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(e.emoji, e.x, e.y + 1);
+
+            ctx.font = 'bold 9px Arial';
+            ctx.fillStyle = '#fff';
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 3;
+            ctx.strokeText(e.name, e.x, e.y - e.r - 5);
+            ctx.fillText(e.name, e.x, e.y - e.r - 5);
+        }
+
+        // Игрок
+        {
+            ctx.fillStyle = 'rgba(0,0,0,0.4)';
+            ctx.beginPath();
+            ctx.ellipse(player.x, player.y + PLAYER_RADIUS*0.7, PLAYER_RADIUS*0.9, PLAYER_RADIUS*0.35, 0, 0, Math.PI*2);
+            ctx.fill();
+
+            ctx.fillStyle = '#4a90d9';
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, PLAYER_RADIUS, 0, Math.PI*2);
+            ctx.fill();
+            ctx.strokeStyle = '#2c5f8a';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            ctx.fillStyle = '#f5d0a9';
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, PLAYER_RADIUS*0.75, 0, Math.PI*2);
+            ctx.fill();
+
+            ctx.fillStyle = '#3d2b1f';
+            ctx.beginPath();
+            ctx.arc(player.x, player.y - PLAYER_RADIUS*0.15, PLAYER_RADIUS*0.75, Math.PI, 0);
+            ctx.fill();
+
+            ctx.fillStyle = 'white';
+            ctx.beginPath();
+            ctx.arc(player.x - 4, player.y - 2, 3, 0, Math.PI*2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(player.x + 4, player.y - 2, 3, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = 'black';
+            ctx.beginPath();
+            ctx.arc(player.x - 4, player.y - 2, 1.5, 0, Math.PI*2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(player.x + 4, player.y - 2, 1.5, 0, Math.PI*2);
+            ctx.fill();
+
+            ctx.strokeStyle = '#8b5a2b';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(player.x, player.y + 5, 4, 0.1, Math.PI - 0.1);
+            ctx.stroke();
+
+            const hungerPct = timeLeft / GAME_DURATION;
+            const barW = 36, barX = player.x - barW/2, barY = player.y - PLAYER_RADIUS - 12;
+            ctx.fillStyle = 'rgba(0,0,0,0.6)';
+            ctx.fillRect(barX, barY, barW, 5);
+            ctx.fillStyle = hungerPct > 0.5 ? '#06d6a0' : (hungerPct > 0.25 ? '#ffd166' : '#ef476f');
+            ctx.fillRect(barX, barY, barW * hungerPct, 5);
+        }
+
+        ctx.restore();
+
+        // Джойстик (в экранных координатах)
+        drawJoystick();
+    }
+
+    function drawJoystick() {
+        if (gameState !== 'playing') return;
+        const { baseX, baseY, baseRadius, knobX, knobY, knobRadius, active } = joystick;
+
+        // Основание
+        ctx.beginPath();
+        ctx.arc(baseX, baseY, baseRadius, 0, Math.PI*2);
+        ctx.fillStyle = active ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.07)';
+        ctx.fill();
+        ctx.strokeStyle = active ? 'rgba(255,209,102,0.7)' : 'rgba(255,255,255,0.25)';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        // Крестовина
+        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(baseX - baseRadius*0.7, baseY);
+        ctx.lineTo(baseX + baseRadius*0.7, baseY);
+        ctx.moveTo(baseX, baseY - baseRadius*0.7);
+        ctx.lineTo(baseX, baseY + baseRadius*0.7);
+        ctx.stroke();
+
+        // Ручка
+        ctx.beginPath();
+        ctx.arc(knobX, knobY, knobRadius, 0, Math.PI*2);
+        const grad = ctx.createRadialGradient(knobX - knobRadius*0.3, knobY - knobRadius*0.3, 2, knobX, knobY, knobRadius);
+        grad.addColorStop(0, '#ffe08a');
+        grad.addColorStop(1, '#e6a817');
+        ctx.fillStyle = grad;
+        ctx.fill();
+        ctx.strokeStyle = '#8a6210';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+    }
+
+    // ============ УПРАВЛЕНИЕ ============
+    let keys = { left:false, right:false, up:false, down:false };
+    window.addEventListener('keydown', (e) => {
+        const k = e.key.toLowerCase();
+        if (k === 'arrowleft' || k === 'a' || k === 'ф') { keys.left = true; e.preventDefault(); }
+        if (k === 'arrowright' || k === 'd' || k === 'в') { keys.right = true; e.preventDefault(); }
+        if (k === 'arrowup' || k === 'w' || k === 'ц') { keys.up = true; e.preventDefault(); }
+        if (k === 'arrowdown' || k === 's' || k === 'ы') { keys.down = true; e.preventDefault(); }
+    });
+    window.addEventListener('keyup', (e) => {
+        const k = e.key.toLowerCase();
+        if (k === 'arrowleft' || k === 'a' || k === 'ф') keys.left = false;
+        if (k === 'arrowright' || k === 'd' || k === 'в') keys.right = false;
+        if (k === 'arrowup' || k === 'w' || k === 'ц') keys.up = false;
+        if (k === 'arrowdown' || k === 's' || k === 'ы') keys.down = false;
+    });
+
+    // Точки в координатах канваса
+    function getCanvasCoords(clientX, clientY) {
+        const rect = canvas.getBoundingClientRect();
+        return { x: clientX - rect.left, y: clientY - rect.top };
+    }
+
+    function isPointInJoystickArea(x, y) {
+        const zoneR = joystick.baseRadius * 1.9;
+        return Math.hypot(x - joystick.baseX, y - joystick.baseY) < zoneR;
+    }
+
+    // Touch
+    canvas.addEventListener('touchstart', (e) => {
+        for (let i = 0; i < e.changedTouches.length; i++) {
+            const t = e.changedTouches[i];
+            const p = getCanvasCoords(t.clientX, t.clientY);
+            if (!joystick.active && isPointInJoystickArea(p.x, p.y)) {
+                joystick.active = true;
+                joystick.touchId = t.identifier;
+                joystickDirFromPoint(p.x, p.y);
+                e.preventDefault();
+                break;
+            }
+        }
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', (e) => {
+        if (!joystick.active) return;
+        for (let i = 0; i < e.changedTouches.length; i++) {
+            const t = e.changedTouches[i];
+            if (t.identifier === joystick.touchId) {
+                const p = getCanvasCoords(t.clientX, t.clientY);
+                joystickDirFromPoint(p.x, p.y);
+                e.preventDefault();
+                break;
+            }
+        }
+    }, { passive: false });
+
+    function handleTouchEnd(e) {
+        for (let i = 0; i < e.changedTouches.length; i++) {
+            const t = e.changedTouches[i];
+            if (t.identifier === joystick.touchId) {
+                resetJoystick();
+                e.preventDefault();
+                break;
+            }
+        }
+    }
+    canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+    canvas.addEventListener('touchcancel', handleTouchEnd, { passive: false });
+
+    // Мышь
+    let mouseDown = false;
+    canvas.addEventListener('mousedown', (e) => {
+        const p = getCanvasCoords(e.clientX, e.clientY);
+        if (isPointInJoystickArea(p.x, p.y)) {
+            mouseDown = true;
+            joystick.active = true;
+            joystick.touchId = 'mouse';
+            joystickDirFromPoint(p.x, p.y);
+            e.preventDefault();
+        }
+    });
+    canvas.addEventListener('mousemove', (e) => {
+        if (!mouseDown) return;
+        const p = getCanvasCoords(e.clientX, e.clientY);
+        joystickDirFromPoint(p.x, p.y);
+    });
+    window.addEventListener('mouseup', () => {
+        if (mouseDown) {
+            mouseDown = false;
+            resetJoystick();
+        }
+    });
+
+    // Запрет контекстного меню и выделения
+    canvas.addEventListener('contextmenu', e => e.preventDefault());
+    document.addEventListener('gesturestart', e => e.preventDefault());
+
+    // ============ КНОПКИ ============
+    startBtn.addEventListener('click', startGame);
+    retryBtn.addEventListener('click', () => { showScreen(null); startGame(); });
+    winRetryBtn.addEventListener('click', () => { showScreen(null); startGame(); });
+
+    // ============ ИНИЦИАЛИЗАЦИЯ ============
+    buildMaze();
+    // Небольшая задержка, чтобы размеры контейнера установились
+    requestAnimationFrame(() => {
+        resize();
+        resetGame();
+        showScreen('start');
+    });
+
+})();
+</script>
+</body>
+  </html>
