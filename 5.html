@@ -1,0 +1,1653 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Школьник в буфете без денег 5 — Конец света</title>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; user-select:none; -webkit-tap-highlight-color:transparent; }
+    html, body {
+        width:100%; height:100%;
+        background:#0f0f1a;
+        font-family:'Segoe UI',Arial,sans-serif;
+        overflow:hidden; touch-action:none;
+        overscroll-behavior:none;
+    }
+    #game-container {
+        position:fixed; inset:0;
+        width:100vw; height:100vh;
+        height:100dvh;
+        background:#16213e;
+        overflow:hidden;
+    }
+    canvas { display:block; width:100%; height:100%; }
+
+    .overlay {
+        position:absolute; inset:0;
+        display:flex; flex-direction:column;
+        justify-content:center; align-items:center;
+        background:rgba(0,0,0,.9); color:#fff;
+        text-align:center; padding:24px; z-index:10;
+        backdrop-filter:blur(5px); transition:opacity .3s;
+    }
+    .overlay.hidden { opacity:0; pointer-events:none; }
+    h1 { font-size:clamp(24px,6.5vw,42px); margin-bottom:12px; color:#ffd166;
+         text-shadow:0 0 20px rgba(255,209,102,.5); }
+    p  { font-size:clamp(13px,3.6vw,18px); margin-bottom:12px; line-height:1.5; color:#ddd;
+         max-width:640px; }
+    button {
+        background:#ffd166; border:none; border-radius:50px;
+        padding:14px 40px; font-size:clamp(15px,4.5vw,22px);
+        font-weight:bold; color:#1a1a2e; cursor:pointer;
+        box-shadow:0 6px 0 #b8943e; margin-top:8px;
+        transition:transform .1s, box-shadow .15s;
+        font-family:inherit;
+    }
+    button:active { transform:translateY(4px); box-shadow:0 2px 0 #b8943e; }
+
+    .timer-bar {
+        position:absolute; top:calc(env(safe-area-inset-top, 0px) + 10px);
+        left:5%; width:90%; height:10px;
+        background:rgba(255,255,255,.15); border-radius:10px;
+        overflow:hidden; z-index:5; pointer-events:none;
+    }
+    .timer-fill {
+        height:100%; width:100%;
+        background:linear-gradient(90deg,#06d6a0,#ffd166,#ef476f);
+        transition:width .1s linear;
+    }
+    .timer-text {
+        position:absolute; top:calc(env(safe-area-inset-top, 0px) + 26px);
+        left:50%; transform:translateX(-50%);
+        color:#fff; font-weight:bold; font-size:clamp(13px,3.6vw,18px);
+        text-shadow:0 2px 8px rgba(0,0,0,.9); z-index:5; pointer-events:none;
+    }
+    .hud-info {
+        position:absolute; top:calc(env(safe-area-inset-top, 0px) + 26px);
+        left:calc(env(safe-area-inset-left, 0px) + 14px);
+        color:#ffd166; font-weight:bold; font-size:clamp(12px,3.2vw,16px);
+        text-shadow:0 2px 8px rgba(0,0,0,.9); z-index:5; pointer-events:none;
+    }
+    .hud-danger {
+        position:absolute;
+        top:calc(env(safe-area-inset-top, 0px) + 26px);
+        right:calc(env(safe-area-inset-right, 0px) + 14px);
+        color:#ff6b6b; font-weight:bold; font-size:clamp(12px,3.2vw,16px);
+        text-shadow:0 2px 8px rgba(0,0,0,.9); z-index:5; pointer-events:none;
+        display:none;
+    }
+    .hud-danger.show { display:block; animation:pulse .5s infinite alternate; }
+    .hud-boost {
+        position:absolute;
+        top:calc(env(safe-area-inset-top, 0px) + 52px);
+        right:calc(env(safe-area-inset-right, 0px) + 14px);
+        color:#4ecdc4; font-weight:bold; font-size:clamp(12px,3.2vw,16px);
+        text-shadow:0 2px 8px rgba(0,0,0,.9); z-index:5; pointer-events:none;
+        display:none;
+    }
+    .hud-boost.show { display:block; }
+    .hud-stage {
+        position:absolute;
+        top:calc(env(safe-area-inset-top, 0px) + 80px);
+        left:50%; transform:translateX(-50%);
+        color:#fff;
+        font-weight:bold;
+        font-size:clamp(11px,3vw,15px);
+        background:rgba(0,0,0,.7);
+        padding:5px 16px;
+        border-radius:20px;
+        z-index:6; pointer-events:none;
+        display:none;
+        text-align:center;
+        border:2px solid rgba(255,255,255,.3);
+        letter-spacing:0.5px;
+    }
+    .hud-stage.show { display:block; }
+
+    .hud-grace {
+        position:absolute;
+        top:50%; left:50%;
+        transform:translate(-50%, -50%);
+        color:#4ecdc4;
+        font-weight:bold;
+        font-size:clamp(80px, 22vw, 180px);
+        text-shadow:0 0 40px rgba(78,205,196,.8), 0 6px 20px rgba(0,0,0,.8);
+        z-index:8; pointer-events:none;
+        display:none;
+        animation:gracePulse .5s infinite alternate;
+    }
+    .hud-grace.show { display:block; }
+    @keyframes gracePulse { from { transform:translate(-50%,-50%) scale(1); } to { transform:translate(-50%,-50%) scale(1.15); } }
+
+    .grace-banner {
+        position:absolute;
+        top:25%; left:50%;
+        transform:translateX(-50%);
+        color:#4ecdc4;
+        font-weight:bold;
+        font-size:clamp(16px,4.5vw,28px);
+        text-shadow:0 2px 12px rgba(0,0,0,.9);
+        z-index:8; pointer-events:none;
+        display:none;
+        text-align:center;
+        padding:0 16px;
+    }
+    .grace-banner.show { display:block; }
+    @keyframes pulse { from { opacity:1; } to { opacity:.4; } }
+
+    .dialogue-box {
+        position:absolute;
+        left:50%; bottom:calc(env(safe-area-inset-bottom, 0px) + 30px);
+        transform:translateX(-50%);
+        width:min(90%, 720px);
+        background:rgba(20,20,35,.96);
+        border:3px solid #ffd166;
+        border-radius:16px;
+        padding:20px 24px;
+        color:#fff;
+        z-index:20;
+        box-shadow:0 10px 30px rgba(0,0,0,.7);
+        display:none;
+    }
+    .dialogue-box.show { display:block; animation:slideUp .35s ease-out; }
+    @keyframes slideUp { from { transform:translate(-50%, 30px); opacity:0; } to { transform:translate(-50%,0); opacity:1; } }
+    .dialogue-speaker {
+        font-weight:bold; color:#ffd166; font-size:clamp(14px,3.8vw,18px);
+        margin-bottom:8px;
+    }
+    .dialogue-text {
+        font-size:clamp(13px,3.6vw,17px); line-height:1.5; color:#eee;
+    }
+    .dialogue-hint {
+        margin-top:10px; font-size:clamp(11px,3vw,14px); color:#888;
+        font-style:italic;
+    }
+
+    .choice-box {
+        position:absolute;
+        left:50%; top:50%;
+        transform:translate(-50%, -50%);
+        width:min(92%, 720px);
+        display:none;
+        flex-direction:column;
+        gap:14px;
+        z-index:22;
+    }
+    .choice-box.show { display:flex; }
+    .choice-btn {
+        background:linear-gradient(180deg, #ff6b6b 0%, #c92a2a 100%);
+        border:none;
+        border-radius:16px;
+        padding:22px 20px;
+        font-size:clamp(14px,3.9vw,20px);
+        font-weight:bold;
+        color:#fff;
+        cursor:pointer;
+        box-shadow:0 6px 0 #7a1a1a, 0 10px 20px rgba(0,0,0,.5);
+        transition:transform .1s, box-shadow .15s;
+        text-align:center;
+        font-family:inherit;
+        letter-spacing:0.5px;
+        line-height:1.3;
+    }
+    .choice-btn.green {
+        background:linear-gradient(180deg, #51cf66 0%, #2f9e44 100%);
+        box-shadow:0 6px 0 #1a5c28, 0 10px 20px rgba(0,0,0,.5);
+    }
+    .choice-btn:active {
+        transform:translateY(4px);
+        box-shadow:0 2px 0 #7a1a1a, 0 4px 10px rgba(0,0,0,.5);
+    }
+    .choice-btn.green:active {
+        box-shadow:0 2px 0 #1a5c28, 0 4px 10px rgba(0,0,0,.5);
+    }
+    .choice-backdrop {
+        position:absolute; inset:0;
+        background:rgba(0,0,0,.7);
+        z-index:21;
+        display:none;
+    }
+    .choice-backdrop.show { display:block; }
+</style>
+</head>
+<body>
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+
+    <div class="timer-bar"><div class="timer-fill" id="timerFill"></div></div>
+    <div class="timer-text" id="timerText">3:00</div>
+    <div class="hud-info" id="speedHud">👟 Скорость: обычная</div>
+    <div class="hud-danger" id="dangerHud">🚨 ОПАСНОСТЬ!</div>
+    <div class="hud-boost" id="boostHud">⚡ ЭНЕРГЕТИК: 0с</div>
+    <div class="hud-stage" id="stageHud">📍 ДОРОГА</div>
+
+    <div class="hud-grace" id="graceHud">5</div>
+    <div class="grace-banner" id="graceBanner">🏃 ФОРА <span id="graceSeconds">5</span>с — БЕГИ!</div>
+
+    <div class="dialogue-box" id="dialogueBox">
+        <div class="dialogue-speaker" id="dialogueSpeaker">Президент</div>
+        <div class="dialogue-text" id="dialogueText"></div>
+        <div class="dialogue-hint" id="dialogueHint">Нажми, чтобы продолжить</div>
+    </div>
+
+    <div class="choice-backdrop" id="choiceBackdrop"></div>
+    <div class="choice-box" id="choiceBox">
+        <button class="choice-btn" id="choiceGive">🌭 ОТДАТЬ СОСИСКУ В ТЕСТЕ</button>
+        <button class="choice-btn green" id="choiceKeep">✊ НЕ ОТДАТЬ</button>
+    </div>
+
+    <div class="overlay" id="startScreen">
+        <div class="emoji-big" style="font-size:clamp(44px,14vw,76px);margin-bottom:8px;">🌭</div>
+        <h1>Школьник в буфете без денег 5</h1>
+        <p>Ты сбежал из квартиры на дорогу.<br>
+           Но за тобой идёт вся твоя жизнь: продавщица, директор,<br>
+           уборщица, мама, папа, полиция, скибиди и хулиган.</p>
+        <p style="color:#ffd166;">Вдруг появляется ПРЕЗИДЕНТ...<br>
+           и требует сосиску в тесте.</p>
+        <p style="color:#ff8a8a;">От твоего выбора зависит судьба мира.</p>
+        <p style="font-size:.9em;color:#aaa;">Управление: джойстик (левый нижний угол)<br>или WASD / стрелки</p>
+        <button id="startBtn">НАЧАТЬ ФИНАЛ 🌍</button>
+    </div>
+
+    <div class="overlay death-screen hidden" id="deathScreen" style="background:rgba(70,0,0,.93);">
+        <div class="emoji-big" style="font-size:clamp(44px,14vw,76px);margin-bottom:8px;">💀</div>
+        <h1 id="deathTitle">Игра окончена</h1>
+        <p id="deathReason">Тебя поймали</p>
+        <button id="retryBtn">Попробовать снова</button>
+    </div>
+
+    <div class="overlay win-screen hidden" id="winScreen" style="background:rgba(0,70,35,.93);">
+        <div class="emoji-big" style="font-size:clamp(44px,14vw,76px);margin-bottom:8px;">🏆</div>
+        <h1 id="winTitle">Ты спасся!</h1>
+        <p id="winReason">Ты в безопасности!</p>
+        <button id="winRetryBtn">Играть снова</button>
+    </div>
+</div>
+
+<script>
+(function(){
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const timerFill = document.getElementById('timerFill');
+    const timerText = document.getElementById('timerText');
+    const speedHud = document.getElementById('speedHud');
+    const dangerHud = document.getElementById('dangerHud');
+    const boostHud = document.getElementById('boostHud');
+    const graceHud = document.getElementById('graceHud');
+    const graceBanner = document.getElementById('graceBanner');
+    const graceSeconds = document.getElementById('graceSeconds');
+    const stageHud = document.getElementById('stageHud');
+
+    const startScreen = document.getElementById('startScreen');
+    const deathScreen = document.getElementById('deathScreen');
+    const winScreen = document.getElementById('winScreen');
+    const deathReason = document.getElementById('deathReason');
+    const deathTitle = document.getElementById('deathTitle');
+    const winReason = document.getElementById('winReason');
+    const winTitle = document.getElementById('winTitle');
+    const startBtn = document.getElementById('startBtn');
+    const retryBtn = document.getElementById('retryBtn');
+    const winRetryBtn = document.getElementById('winRetryBtn');
+
+    const dialogueBox = document.getElementById('dialogueBox');
+    const dialogueSpeaker = document.getElementById('dialogueSpeaker');
+    const dialogueText = document.getElementById('dialogueText');
+    const dialogueHint = document.getElementById('dialogueHint');
+
+    const choiceBox = document.getElementById('choiceBox');
+    const choiceBackdrop = document.getElementById('choiceBackdrop');
+    const choiceGive = document.getElementById('choiceGive');
+    const choiceKeep = document.getElementById('choiceKeep');
+
+    // ============ КОНСТАНТЫ ============
+    const GAME_DURATION = 180;
+    const GRACE_PERIOD = 5;
+    const PLAYER_RADIUS = 14;
+    const PLAYER_SPEED = 3.6;
+    const PLAYER_SPEED_BOOSTED = 6.0;
+    const BOOST_DURATION = 5;
+    const ENEMY_RADIUS = 16;
+    const TILE = 70;
+
+    // ============ СОСТОЯНИЕ ============
+    let gameState = 'start';
+    let stage = 'road';
+    let timeLeft = GAME_DURATION;
+    let graceTime = 0;
+    let lastTimestamp = 0;
+    let animationId = null;
+
+    let viewW = 0, viewH = 0;
+
+    let player = { x:0, y:0, boostTime:0 };
+    let enemies = [];
+    let energyDrinks = [];
+    let goalTarget = { x:0, y:0, reached:false, r:30 };
+    let worldMap = [];
+    let COLS = 0, ROWS = 0;
+
+    let tesla = null;
+    let bunker = null;
+
+    let camX = 0, camY = 0;
+
+    // ============ ДЖОЙСТИК ============
+    const joystick = {
+        baseX: 0, baseY: 0,
+        baseRadius: 65,
+        knobX: 0, knobY: 0,
+        knobRadius: 28,
+        active: false,
+        touchId: null,
+        dirX: 0, dirY: 0
+    };
+
+    function updateJoystickLayout() {
+        joystick.baseX = 80;
+        joystick.baseY = viewH - 80;
+        joystick.baseRadius = Math.min(70, Math.min(viewW, viewH) * 0.14);
+        joystick.knobRadius = joystick.baseRadius * 0.45;
+        if (!joystick.active) {
+            joystick.knobX = joystick.baseX;
+            joystick.knobY = joystick.baseY;
+        }
+    }
+
+    function joystickDirFromPoint(px, py) {
+        let dx = px - joystick.baseX;
+        let dy = py - joystick.baseY;
+        const dist = Math.hypot(dx, dy);
+        const maxDist = joystick.baseRadius;
+        if (dist < 6) {
+            joystick.dirX = 0; joystick.dirY = 0;
+            joystick.knobX = joystick.baseX; joystick.knobY = joystick.baseY;
+            return;
+        }
+        const clampedDist = Math.min(dist, maxDist);
+        const nx = dx / dist, ny = dy / dist;
+        joystick.knobX = joystick.baseX + nx * clampedDist;
+        joystick.knobY = joystick.baseY + ny * clampedDist;
+        const mag = Math.min(dist / maxDist, 1);
+        joystick.dirX = nx * mag;
+        joystick.dirY = ny * mag;
+    }
+
+    function resetJoystick() {
+        joystick.active = false;
+        joystick.touchId = null;
+        joystick.dirX = 0; joystick.dirY = 0;
+        joystick.knobX = joystick.baseX;
+        joystick.knobY = joystick.baseY;
+    }
+
+    // ============ КАРТЫ ============
+    function buildRoadMap() {
+        COLS = 90;
+        ROWS = 9;
+        worldMap = [];
+        for (let r = 0; r < ROWS; r++) {
+            const row = new Array(COLS).fill(0);
+            worldMap.push(row);
+        }
+        for (let c = 0; c < COLS; c++) {
+            worldMap[0][c] = 1;
+            worldMap[ROWS-1][c] = 1;
+        }
+        for (let r = 0; r < ROWS; r++) {
+            worldMap[r][0] = 1;
+            worldMap[r][COLS-1] = 1;
+        }
+    }
+
+    function buildCityMap() {
+        COLS = 60;
+        ROWS = 30;
+        worldMap = [];
+        for (let r = 0; r < ROWS; r++) {
+            const row = new Array(COLS).fill(0);
+            worldMap.push(row);
+        }
+        for (let c = 0; c < COLS; c++) {
+            worldMap[0][c] = 1;
+            worldMap[ROWS-1][c] = 1;
+        }
+        for (let r = 0; r < ROWS; r++) {
+            worldMap[r][0] = 1;
+            worldMap[r][COLS-1] = 1;
+        }
+        for (let br = 4; br < ROWS - 6; br += 5) {
+            for (let bc = 4; bc < COLS - 5; bc += 6) {
+                for (let r = br; r <= br + 2; r++) {
+                    for (let c = bc; c <= bc + 3; c++) {
+                        if (r > 0 && r < ROWS-1 && c > 0 && c < COLS-1) {
+                            worldMap[r][c] = 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ============ РАЗМЕРЫ ============
+    function resize() {
+        const rect = document.getElementById('game-container').getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        viewW = rect.width;
+        viewH = rect.height;
+        canvas.width = viewW * dpr;
+        canvas.height = viewH * dpr;
+        canvas.style.width = viewW + 'px';
+        canvas.style.height = viewH + 'px';
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        updateJoystickLayout();
+    }
+
+    window.addEventListener('resize', () => { resize(); });
+    window.addEventListener('orientationchange', () => { setTimeout(resize, 250); });
+
+    // ============ КОЛЛИЗИИ ============
+    function getTile(cx, cy) {
+        const c = Math.floor(cx / TILE);
+        const r = Math.floor(cy / TILE);
+        if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return 1;
+        return worldMap[r][c];
+    }
+    function isSolid(cx, cy) { return getTile(cx, cy) === 1; }
+    function circleSolidCollision(x, y, radius) {
+        const points = 8;
+        for (let i = 0; i < points; i++) {
+            const a = (i / points) * Math.PI * 2;
+            const px = x + Math.cos(a) * radius;
+            const py = y + Math.sin(a) * radius;
+            if (isSolid(px, py)) return true;
+        }
+        return false;
+    }
+    function moveWithCollision(ent, dx, dy, radius) {
+        let nx = ent.x + dx;
+        if (!circleSolidCollision(nx, ent.y, radius)) ent.x = nx;
+        let ny = ent.y + dy;
+        if (!circleSolidCollision(ent.x, ny, radius)) ent.y = ny;
+    }
+
+    function isFreeCell(c, r) {
+        if (r < 1 || r >= ROWS - 1 || c < 1 || c >= COLS - 1) return false;
+        return worldMap[r][c] === 0;
+    }
+
+    function isFreeCircle(x, y, radius) {
+        return !circleSolidCollision(x, y, radius);
+    }
+
+    function findNearestFreeSpot(startCX, startCY, radiusCheck) {
+        for (let rad = 0; rad <= 15; rad++) {
+            for (let dc = -rad; dc <= rad; dc++) {
+                for (let dr = -rad; dr <= rad; dr++) {
+                    if (Math.abs(dc) !== rad && Math.abs(dr) !== rad) continue;
+                    const c = startCX + dc, r = startCY + dr;
+                    if (!isFreeCell(c, r)) continue;
+                    const x = c * TILE + TILE/2;
+                    const y = r * TILE + TILE/2;
+                    if (!isFreeCircle(x, y, radiusCheck)) continue;
+                    return { x, y, c, r };
+                }
+            }
+        }
+        return null;
+    }
+
+    function bfsPath(scx, scy, tcx, tcy) {
+        if (scx === tcx && scy === tcy) return [];
+        const key = (c, r) => r * COLS + c;
+        const visited = new Uint8Array(COLS * ROWS);
+        const parent = new Map();
+        const queue = [{ c: scx, r: scy }];
+        visited[key(scx, scy)] = 1;
+        const dirs = [ [1,0], [-1,0], [0,1], [0,-1] ];
+        let found = false;
+        while (queue.length) {
+            const cur = queue.shift();
+            if (cur.c === tcx && cur.r === tcy) { found = true; break; }
+            for (const [dx, dy] of dirs) {
+                const nc = cur.c + dx, nr = cur.r + dy;
+                if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS) continue;
+                if (worldMap[nr][nc] === 1) continue;
+                if (visited[key(nc, nr)]) continue;
+                visited[key(nc, nr)] = 1;
+                parent.set(key(nc, nr), { c: cur.c, r: cur.r });
+                queue.push({ c: nc, r: nr });
+            }
+        }
+        if (!found) return null;
+        const path = [];
+        let cur = { c: tcx, r: tcy };
+        while (!(cur.c === scx && cur.r === scy)) {
+            path.push(cur);
+            const p = parent.get(key(cur.c, cur.r));
+            if (!p) break;
+            cur = p;
+        }
+        path.reverse();
+        return path;
+    }
+
+    // ============ ВРАГИ ============
+    function createEnemy(type, x, y) {
+        const cfg = {
+            'seller':    { speed: 2.6, color: '#e67e22', name: 'Продавщица', emoji: '🍽️' },
+            'director':  { speed: 2.8, color: '#8e44ad', name: 'Директор', emoji: '👨‍💼' },
+            'janitor':   { speed: 1.6, color: '#27ae60', name: 'Уборщица', emoji: '🧹' },
+            'mom':       { speed: 2.4, color: '#e84393', name: 'Мама', emoji: '👩' },
+            'dad':       { speed: 3.0, color: '#2c3e50', name: 'Папа', emoji: '👨' },
+            'police':    { speed: 3.0, color: '#1e3a8a', name: 'Полиция', emoji: '👮' },
+            'skibidi':   { speed: 2.0, color: '#7d3c98', name: 'Скибиди', emoji: '🚽' },
+            'bully':     { speed: 2.7, color: '#c0392b', name: 'Хулиган', emoji: '😎' },
+            'president': { speed: 3.1, color: '#ffd700', name: 'Президент', emoji: '🎩' },
+            'monster67': { speed: 2.6, color: '#ff1493', name: '67', emoji: '👾' },
+        }[type];
+        return {
+            type, x, y,
+            r: type === 'president' ? ENEMY_RADIUS + 3 : ENEMY_RADIUS,
+            speed: cfg.speed,
+            color: cfg.color,
+            name: cfg.name,
+            emoji: cfg.emoji,
+            frozen: true,
+            stuckTimer: 0,
+            recalcTimer: 0,
+            dir: { x: 0, y: 0 },
+            bob: Math.random() * Math.PI * 2
+        };
+    }
+
+    function updateEnemy(e, dt) {
+        if (e.frozen) return;
+        // Пересчитываем путь к игроку
+        e.recalcTimer -= dt;
+        if (e.recalcTimer <= 0) {
+            e.recalcTimer = 0.3;
+            const ecx = Math.floor(e.x / TILE);
+            const ecy = Math.floor(e.y / TILE);
+            const pcx = Math.floor(player.x / TILE);
+            const pcy = Math.floor(player.y / TILE);
+            const path = bfsPath(ecx, ecy, pcx, pcy);
+            if (path && path.length > 0) {
+                let tx, ty;
+                if (path.length === 1) { tx = player.x; ty = player.y; }
+                else { tx = path[0].c * TILE + TILE/2; ty = path[0].r * TILE + TILE/2; }
+                const dx = tx - e.x;
+                const dy = ty - e.y;
+                const d = Math.hypot(dx, dy) || 1;
+                e.dir = { x: dx / d, y: dy / d };
+            } else {
+                // Прямая линия к игроку (если BFS не нашёл путь)
+                const dx = player.x - e.x;
+                const dy = player.y - e.y;
+                const d = Math.hypot(dx, dy) || 1;
+                e.dir = { x: dx / d, y: dy / d };
+            }
+        }
+        const sp = e.speed * dt * 60;
+        const moveX = e.dir.x * sp;
+        const moveY = e.dir.y * sp;
+        const oldX = e.x, oldY = e.y;
+        moveWithCollision(e, moveX, moveY, e.r);
+        if (Math.abs(e.x - oldX) < 0.05 && Math.abs(e.y - oldY) < 0.05) {
+            e.stuckTimer += dt;
+            if (e.stuckTimer > 0.15) {
+                e.recalcTimer = 0;
+                const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+                for (const [dx, dy] of dirs) {
+                    const tx = e.x + dx * 5;
+                    const ty = e.y + dy * 5;
+                    if (!circleSolidCollision(tx, ty, e.r)) {
+                        e.x = tx; e.y = ty;
+                        break;
+                    }
+                }
+                e.stuckTimer = 0;
+            }
+        } else {
+            e.stuckTimer = 0;
+        }
+        e.bob += dt * 6;
+    }
+
+    // ============ СПАВН ВРАГОВ ============
+    function spawnEnemiesAroundPlayer(types, minDist, maxDist) {
+        enemies = [];
+        const placed = [];
+        for (const type of types) {
+            let attempts = 400;
+            let success = false;
+            while (attempts > 0) {
+                attempts--;
+                const angle = Math.random() * Math.PI * 2;
+                const dist = minDist + Math.random() * (maxDist - minDist);
+                const x = player.x + Math.cos(angle) * dist;
+                const y = player.y + Math.sin(angle) * dist;
+                const c = Math.floor(x / TILE);
+                const r = Math.floor(y / TILE);
+                if (!isFreeCell(c, r)) continue;
+                if (!isFreeCircle(x, y, ENEMY_RADIUS + 4)) continue;
+                if (placed.some(p => Math.hypot(p.x - x, p.y - y) < TILE * 1.5)) continue;
+                if (Math.hypot(x - player.x, y - player.y) < minDist * 0.9) continue;
+                enemies.push(createEnemy(type, x, y));
+                placed.push({ x, y });
+                success = true;
+                break;
+            }
+            if (!success) {
+                for (let attempt = 0; attempt < 300; attempt++) {
+                    const c = 1 + Math.floor(Math.random() * (COLS - 2));
+                    const r = 1 + Math.floor(Math.random() * (ROWS - 2));
+                    if (!isFreeCell(c, r)) continue;
+                    const x = c * TILE + TILE/2;
+                    const y = r * TILE + TILE/2;
+                    const distToPlayer = Math.hypot(x - player.x, y - player.y);
+                    if (distToPlayer < TILE * 2) continue;
+                    if (!isFreeCircle(x, y, ENEMY_RADIUS + 4)) continue;
+                    if (placed.some(p => Math.hypot(p.x - x, p.y - y) < TILE * 1.5)) continue;
+                    enemies.push(createEnemy(type, x, y));
+                    placed.push({ x, y });
+                    break;
+                }
+            }
+        }
+    }
+
+    // ============ ЭНЕРГЕТИКИ ============
+    function spawnEnergyDrinks(count, onRoad) {
+        energyDrinks = [];
+        let placed = 0;
+        let attempts = 500;
+        while (placed < count && attempts > 0) {
+            attempts--;
+            const c = 1 + Math.floor(Math.random() * (COLS - 2));
+            const r = 1 + Math.floor(Math.random() * (ROWS - 2));
+            if (worldMap[r][c] === 0) {
+                const cx = c * TILE + TILE/2;
+                const cy = r * TILE + TILE/2;
+                if (Math.hypot(cx - player.x, cy - player.y) < TILE * 2) continue;
+                if (Math.hypot(cx - goalTarget.x, cy - goalTarget.y) < TILE * 2) continue;
+                if (energyDrinks.some(e => Math.hypot(e.x - cx, e.y - cy) < TILE)) continue;
+                if (onRoad && (r < 2 || r > ROWS - 3)) continue;
+                energyDrinks.push({ x: cx, y: cy, r: 14, bobPhase: Math.random() * Math.PI * 2 });
+                placed++;
+            }
+        }
+    }
+
+    // ============ ИГРОК ============
+    function updatePlayer(dt) {
+        let dx = 0, dy = 0;
+        if (keys.left) dx -= 1;
+        if (keys.right) dx += 1;
+        if (keys.up) dy -= 1;
+        if (keys.down) dy += 1;
+        if (joystick.dirX !== 0 || joystick.dirY !== 0) {
+            dx = joystick.dirX; dy = joystick.dirY;
+        }
+        const len = Math.hypot(dx, dy);
+        if (len > 1) { dx /= len; dy /= len; }
+        const baseSpeed = player.boostTime > 0 ? PLAYER_SPEED_BOOSTED : PLAYER_SPEED;
+        const sp = baseSpeed * dt * 60;
+        moveWithCollision(player, dx * sp, dy * sp, PLAYER_RADIUS);
+        if (player.boostTime > 0) {
+            player.boostTime -= dt;
+            if (player.boostTime < 0) player.boostTime = 0;
+        }
+        updateBoostHud();
+    }
+
+    function updateBoostHud() {
+        if (player.boostTime > 0) {
+            boostHud.classList.add('show');
+            boostHud.textContent = `⚡ ЭНЕРГЕТИК: ${player.boostTime.toFixed(1)}с`;
+            speedHud.textContent = `👟 Скорость: УСКОРЕНИЕ`;
+        } else {
+            boostHud.classList.remove('show');
+            speedHud.textContent = `👟 Скорость: обычная`;
+        }
+    }
+
+    function updateGraceHud() {
+        if (graceTime > 0) {
+            const sec = Math.ceil(graceTime);
+            graceHud.classList.add('show');
+            graceHud.textContent = sec;
+            graceBanner.classList.add('show');
+            graceSeconds.textContent = sec;
+        } else {
+            graceHud.classList.remove('show');
+            graceBanner.classList.remove('show');
+        }
+    }
+
+    function setStageLabel(text) {
+        stageHud.textContent = text;
+        stageHud.classList.add('show');
+    }
+
+    // ============ СБРОС / СЦЕНАРИИ ============
+    function resetGame() {
+        player.boostTime = 0;
+        enemies = [];
+        energyDrinks = [];
+        tesla = null;
+        bunker = null;
+        goalTarget.reached = false;
+        stage = 'road';
+        updateDangerHud();
+    }
+
+    function setupRoadStage() {
+        stage = 'road';
+        buildRoadMap();
+        resize();
+
+        const startSpot = findNearestFreeSpot(4, Math.floor(ROWS / 2), PLAYER_RADIUS + 2);
+        if (startSpot) {
+            player.x = startSpot.x;
+            player.y = startSpot.y;
+        } else {
+            player.x = 4 * TILE;
+            player.y = Math.floor(ROWS / 2) * TILE;
+        }
+
+        const exitSpot = findNearestFreeSpot(COLS - 3, Math.floor(ROWS / 2), 30);
+        if (exitSpot) {
+            goalTarget.x = exitSpot.x;
+            goalTarget.y = exitSpot.y;
+        } else {
+            goalTarget.x = (COLS - 3) * TILE;
+            goalTarget.y = Math.floor(ROWS / 2) * TILE;
+        }
+        goalTarget.r = 30;
+        goalTarget.reached = false;
+
+        tesla = {
+            x: goalTarget.x,
+            y: goalTarget.y,
+            r: 22,
+            bob: 0
+        };
+
+        const types = ['seller', 'director', 'janitor', 'mom', 'dad', 'police', 'police', 'skibidi', 'skibidi', 'bully', 'president'];
+        spawnEnemiesAroundPlayer(types, TILE * 3.5, TILE * 9);
+
+        spawnEnergyDrinks(12, true);
+
+        camX = player.x - viewW / 2;
+        camY = player.y - viewH / 2;
+
+        timeLeft = GAME_DURATION;
+        updateTimerUI();
+        updateBoostHud();
+        setStageLabel('📍 ДОРОГА — БЕГИ К ТЕСЛЕ!');
+    }
+
+    function setupCityStage() {
+        stage = 'portal-city';
+        buildCityMap();
+        resize();
+
+        const startSpot = findNearestFreeSpot(2, 2, PLAYER_RADIUS + 2);
+        if (startSpot) {
+            player.x = startSpot.x;
+            player.y = startSpot.y;
+        } else {
+            player.x = 1 * TILE + TILE/2;
+            player.y = 1 * TILE + TILE/2;
+        }
+
+        const bunkerSpot = findNearestFreeSpot(COLS - 3, ROWS - 3, 30);
+        if (bunkerSpot) {
+            bunker = {
+                x: bunkerSpot.x,
+                y: bunkerSpot.y,
+                r: 30,
+                bob: 0
+            };
+        } else {
+            bunker = {
+                x: (COLS - 3) * TILE,
+                y: (ROWS - 3) * TILE,
+                r: 30,
+                bob: 0
+            };
+        }
+        goalTarget.x = bunker.x;
+        goalTarget.y = bunker.y;
+        goalTarget.r = 28;
+        goalTarget.reached = false;
+
+        // Монстры 67 — по всему городу, в поле зрения камеры
+        const monsterTypes = ['monster67', 'monster67', 'monster67', 'monster67', 'monster67', 'monster67'];
+        spawnEnemiesAroundPlayer(monsterTypes, TILE * 5, TILE * 12);
+
+        spawnEnergyDrinks(8, false);
+
+        camX = player.x - viewW / 2;
+        camY = player.y - viewH / 2;
+
+        timeLeft = GAME_DURATION;
+        updateTimerUI();
+        updateBoostHud();
+        setStageLabel('🌈 РАЗНОЦВЕТНЫЙ ГОРОД — 67 ГОНЯТСЯ!');
+    }
+
+    function updateDangerHud() {
+        if (stage === 'road') dangerHud.textContent = '🚨 ВСЕ ГОНЯТСЯ ЗА ТОБОЙ!';
+        else if (stage === 'portal-city') dangerHud.textContent = '👾 67 ГОНЯТСЯ ЗА ТОБОЙ!';
+        else dangerHud.textContent = '🚨 ОПАСНОСТЬ!';
+    }
+
+    function updateTimerUI() {
+        const pct = (timeLeft / GAME_DURATION) * 100;
+        timerFill.style.width = pct + '%';
+        const mins = Math.floor(timeLeft / 60);
+        const secs = Math.floor(timeLeft % 60);
+        timerText.textContent = `${mins}:${secs.toString().padStart(2,'0')}`;
+    }
+
+    function showScreen(screen) {
+        startScreen.classList.add('hidden');
+        deathScreen.classList.add('hidden');
+        winScreen.classList.add('hidden');
+        if (screen === 'start') startScreen.classList.remove('hidden');
+        if (screen === 'death') deathScreen.classList.remove('hidden');
+        if (screen === 'win') winScreen.classList.remove('hidden');
+    }
+
+    function die(reason, title) {
+        if (gameState !== 'playing') return;
+        gameState = 'dead';
+        deathReason.textContent = reason;
+        if (title) deathTitle.textContent = title;
+        showScreen('death');
+        if (animationId) cancelAnimationFrame(animationId);
+    }
+
+    function win(title, reason) {
+        if (gameState !== 'playing') return;
+        gameState = 'win';
+        winTitle.textContent = title || 'Ты спасся!';
+        winReason.textContent = reason || 'Ты в безопасности!';
+        showScreen('win');
+        if (animationId) cancelAnimationFrame(animationId);
+    }
+
+    // ============ ДИАЛОГИ ============
+    let dialogueQueue = [], dialogueIndex = 0, dialogueActive = false, dialogueOnComplete = null;
+
+    function startDialogue(lines, onComplete) {
+        dialogueQueue = lines;
+        dialogueIndex = 0;
+        dialogueActive = true;
+        dialogueOnComplete = onComplete;
+        dialogueBox.classList.add('show');
+        showDialogueLine();
+    }
+
+    function showDialogueLine() {
+        if (dialogueIndex >= dialogueQueue.length) {
+            endDialogue();
+            return;
+        }
+        const line = dialogueQueue[dialogueIndex];
+        dialogueSpeaker.textContent = line.speaker;
+        dialogueSpeaker.style.color = line.color || '#ffd166';
+        dialogueText.textContent = line.text;
+        dialogueHint.textContent = 'Нажми, чтобы продолжить ▶';
+    }
+
+    function advanceDialogue() {
+        if (!dialogueActive) return;
+        dialogueIndex++;
+        if (dialogueIndex >= dialogueQueue.length) endDialogue();
+        else showDialogueLine();
+    }
+
+    function endDialogue() {
+        dialogueActive = false;
+        dialogueBox.classList.remove('show');
+        const cb = dialogueOnComplete;
+        dialogueOnComplete = null;
+        if (cb) cb();
+    }
+
+    dialogueBox.addEventListener('click', (e) => { e.stopPropagation(); advanceDialogue(); });
+    dialogueBox.addEventListener('touchstart', (e) => { e.stopPropagation(); e.preventDefault(); advanceDialogue(); }, { passive: false });
+
+    // ============ ВЫБОР ============
+    function showChoice() {
+        gameState = 'choice';
+        choiceBackdrop.classList.add('show');
+        choiceBox.classList.add('show');
+    }
+    function hideChoice() {
+        choiceBackdrop.classList.remove('show');
+        choiceBox.classList.remove('show');
+    }
+
+    choiceGive.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (gameState !== 'choice') return;
+        hideChoice();
+        startDialogue([
+            { speaker: 'Ты 🌭', color: '#4a90d9', text: 'Ладно... Забирай сосиску, президент.' },
+            { speaker: 'Президент 🎩', color: '#ffd700', text: 'ПРАВИЛЬНОЕ РЕШЕНИЕ, ГРАЖДАНИН!' },
+            { speaker: 'Президент 🎩', color: '#ffd700', text: 'Мир спасён! ...но ты остался без еды.' },
+            { speaker: 'Ты 😔', color: '#4a90d9', text: 'Я так голоден... совсем один... без сосиски...' }
+        ], () => {
+            die('Ты отдал сосиску президенту. Мир спасён — но ты умер от голода в одиночестве.', 'Смерть от голода');
+        });
+    });
+
+    choiceKeep.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (gameState !== 'choice') return;
+        hideChoice();
+        startDialogue([
+            { speaker: 'Ты 🌭', color: '#4a90d9', text: 'НЕТ! Это МОЯ сосиска!' },
+            { speaker: 'Президент 🎩', color: '#ffd700', text: 'ТОГДА ПЕНЯЙ НА СЕБЯ! ВСЕ — ЗА НИМ!' },
+            { speaker: 'Продавщица 🍽️', color: '#e67e22', text: 'СТОЙ, ВОР!' },
+            { speaker: 'Директор 👨‍💼', color: '#8e44ad', text: 'ТЫ ОПЯТЬ НЕ НА УРОКЕ?!' },
+            { speaker: 'Мама 👩', color: '#e84393', text: 'СЫНОК, ВЕРНИСЬ ДОМОЙ!' },
+            { speaker: 'Папа 👨', color: '#e74c3c', text: 'РЕМЕНЬ ЖДЁТ!' },
+            { speaker: 'Полиция 👮', color: '#1e3a8a', text: 'СТОЯТЬ! ПОЛИЦИЯ!' },
+            { speaker: 'Скибиди 🚽', color: '#7d3c98', text: 'SKIBIDI DOP DOP YES YES!' },
+            { speaker: 'Ты 🏃', color: '#4a90d9', text: 'О НЕТ! СКОРЕЕ К ТЕСЛЕ!' }
+        ], () => {
+            setupRoadStage();
+            gameState = 'playing';
+            graceTime = GRACE_PERIOD;
+            updateGraceHud();
+            lastTimestamp = performance.now();
+            if (animationId) cancelAnimationFrame(animationId);
+            animationId = requestAnimationFrame(gameLoop);
+        });
+    });
+
+    // ============ СТАРТ ============
+    function beginGame() {
+        resetGame();
+        showScreen(null);
+        gameState = 'intro';
+
+        startDialogue([
+            { speaker: 'Ты 🏃', color: '#4a90d9', text: 'Фух... сбежал из квартиры. Наконец-то дорога!' },
+            { speaker: '???', color: '#ff6b6b', text: 'ВДАЛИ ВИДНЫ СИЛУЭТЫ... МНОГО СИЛУЭТОВ.' },
+            { speaker: 'Продавщица 🍽️', color: '#e67e22', text: 'ВОТ ОН! ДЕРЖИ ВОРА!' },
+            { speaker: 'Директор 👨‍💼', color: '#8e44ad', text: 'СТОЙ! ТЫ ДО СИХ ПОР НЕ СДАЛ МАТЕМАТИКУ!' },
+            { speaker: 'Мама 👩', color: '#e84393', text: 'СЫНОК! ИДИ СЮДА!' },
+            { speaker: 'Папа 👨', color: '#e74c3c', text: 'Я ВСЁ ВИДЕЛ! РЕМЕНЬ У МЕНЯ!' },
+            { speaker: 'Полиция 👮', color: '#1e3a8a', text: 'СТОЯТЬ! ИМЕНЕМ ЗАКОНА!' },
+            { speaker: 'Скибиди 🚽', color: '#7d3c98', text: 'SKIBIDI DOP DOP YES YES!' },
+            { speaker: 'Хулиган 😎', color: '#c0392b', text: 'ПЛАТИ 100 РУБЛЕЙ!' },
+            { speaker: '🎩 ПРЕЗИДЕНТ', color: '#ffd700', text: 'СТОП! Я — ПРЕЗИДЕНТ ЭТОЙ СТРАНЫ!' },
+            { speaker: '🎩 ПРЕЗИДЕНТ', color: '#ffd700', text: 'НЕМЕДЛЕННО ОТДАЙ МНЕ СОСИСКУ В ТЕСТЕ!' },
+            { speaker: '🎩 ПРЕЗИДЕНТ', color: '#ffd700', text: 'ИНАЧЕ ПРОИЗОЙДЁТ КОНЕЦ СВЕТА! Я НЕ ШУЧУ!' }
+        ], () => {
+            showChoice();
+        });
+    }
+
+    // ============ ИГРОВОЙ ЦИКЛ ============
+    function gameLoop(timestamp) {
+        if (gameState !== 'playing') return;
+        const dt = Math.min((timestamp - lastTimestamp) / 1000, 0.05);
+        lastTimestamp = timestamp;
+        update(dt);
+        render();
+        animationId = requestAnimationFrame(gameLoop);
+    }
+
+    function update(dt) {
+        timeLeft -= dt;
+        if (timeLeft <= 0) {
+            timeLeft = 0;
+            updateTimerUI();
+            if (stage === 'road') die('Время вышло. Враги настигли тебя на дороге.', 'Пойман!');
+            else die('Монстры 67 нашли тебя. SKIBIDI SIX-SEVEN!', 'Пойман 67!');
+            return;
+        }
+        updateTimerUI();
+
+        updatePlayer(dt);
+
+        if (graceTime > 0) {
+            graceTime -= dt;
+            if (graceTime <= 0) {
+                graceTime = 0;
+                // Разморозка ВСЕХ врагов — они начинают идти за игроком
+                for (const e of enemies) e.frozen = false;
+            }
+            updateGraceHud();
+        }
+
+        let closestDist = Infinity;
+        for (const e of enemies) {
+            updateEnemy(e, dt);
+            const d = Math.hypot(e.x - player.x, e.y - player.y);
+            if (d < closestDist) closestDist = d;
+            if (d < PLAYER_RADIUS + e.r) {
+                if (stage === 'road') {
+                    if (e.type === 'president') die('Президент поймал тебя! "Я ЖЕ ПРЕДУПРЕЖДАЛ!"', 'Пойман президентом!');
+                    else die(`${e.name} поймал тебя! Сосиска потеряна.`, 'Пойман!');
+                } else {
+                    die('Монстр 67 поймал тебя. Сосиски больше нет...', 'Пойман 67!');
+                }
+                return;
+            }
+        }
+        if (closestDist < 220) dangerHud.classList.add('show');
+        else dangerHud.classList.remove('show');
+
+        for (let i = energyDrinks.length - 1; i >= 0; i--) {
+            const ed = energyDrinks[i];
+            if (Math.hypot(player.x - ed.x, player.y - ed.y) < PLAYER_RADIUS + ed.r) {
+                player.boostTime = BOOST_DURATION;
+                energyDrinks.splice(i, 1);
+                updateBoostHud();
+            }
+        }
+
+        if (stage === 'road' && !goalTarget.reached) {
+            const d = Math.hypot(player.x - goalTarget.x, player.y - goalTarget.y);
+            if (d < PLAYER_RADIUS + goalTarget.r) {
+                goalTarget.reached = true;
+                transitionToCity();
+            }
+        }
+
+        if (stage === 'portal-city' && !goalTarget.reached) {
+            const d = Math.hypot(player.x - goalTarget.x, player.y - goalTarget.y);
+            if (d < PLAYER_RADIUS + goalTarget.r) {
+                goalTarget.reached = true;
+                win('ТЫ СПАСЁН!', 'Ты забежал в бункер и захлопнул дверь. Монстры 67 остались снаружи. Никола Тесла спас тебя!');
+            }
+        }
+
+        camX = player.x - viewW / 2;
+        camY = player.y - viewH / 2;
+    }
+
+    function transitionToCity() {
+        if (animationId) cancelAnimationFrame(animationId);
+        gameState = 'intro';
+
+        startDialogue([
+            { speaker: 'Никола Тесла ⚡', color: '#4ecdc4', text: 'СТОЙ, ЮНЫЙ ГЕРОЙ! Я — НИКОЛА ТЕСЛА!' },
+            { speaker: 'Никола Тесла ⚡', color: '#4ecdc4', text: 'Я вижу, за тобой идёт вся твоя жизнь. Я спасу тебя!' },
+            { speaker: 'Никола Тесла ⚡', color: '#4ecdc4', text: 'Но для этого тебе нужно войти в мой секретный портал!' },
+            { speaker: 'Никола Тесла ⚡', color: '#4ecdc4', text: 'Он ведёт в другой мир — разноцветный город, похожий на твой.' },
+            { speaker: 'Никола Тесла ⚡', color: '#4ecdc4', text: 'Только помни: там обитают "67" — монстры, которые ненавидят сосиски!' },
+            { speaker: 'Ты 🌭', color: '#4a90d9', text: 'Хорошо! Я готов!' },
+            { speaker: 'Никола Тесла ⚡', color: '#4ecdc4', text: 'Ступай! И найди бункер — он спасёт тебя!' }
+        ], () => {
+            setupCityStage();
+            gameState = 'playing';
+            graceTime = GRACE_PERIOD;
+            updateGraceHud();
+            lastTimestamp = performance.now();
+            animationId = requestAnimationFrame(gameLoop);
+        });
+    }
+
+    // ============ ОТРИСОВКА ============
+    function render() {
+        ctx.clearRect(0, 0, viewW, viewH);
+
+        if (stage === 'portal-city') {
+            drawRainbowBackground();
+        } else {
+            ctx.fillStyle = '#0a0a14';
+            ctx.fillRect(0, 0, viewW, viewH);
+        }
+
+        ctx.save();
+        ctx.translate(-camX, -camY);
+
+        const c0 = Math.max(0, Math.floor(camX / TILE) - 1);
+        const c1 = Math.min(COLS - 1, Math.ceil((camX + viewW) / TILE) + 1);
+        const r0 = Math.max(0, Math.floor(camY / TILE) - 1);
+        const r1 = Math.min(ROWS - 1, Math.ceil((camY + viewH) / TILE) + 1);
+
+        for (let r = r0; r <= r1; r++) {
+            for (let c = c0; c <= c1; c++) {
+                const x = c * TILE, y = r * TILE;
+                if (worldMap[r][c] === 1) drawWall(x, y, r, c);
+                else drawFloor(x, y, r, c);
+            }
+        }
+
+        if (stage === 'road') drawTesla();
+        else if (stage === 'portal-city') drawBunker();
+
+        for (const ed of energyDrinks) {
+            if (ed.x < camX - 50 || ed.x > camX + viewW + 50) continue;
+            if (ed.y < camY - 50 || ed.y > camY + viewH + 50) continue;
+            drawEnergyDrink(ed);
+        }
+
+        for (const e of enemies) {
+            if (e.x < camX - 80 || e.x > camX + viewW + 80) continue;
+            if (e.y < camY - 80 || e.y > camY + viewH + 80) continue;
+            drawEnemy(e);
+        }
+
+        drawPlayer();
+        ctx.restore();
+
+        drawJoystick();
+    }
+
+    function drawEnergyDrink(ed) {
+        const t = performance.now() / 300;
+        const bob = Math.sin(t + ed.bobPhase) * 3;
+        ctx.save();
+        ctx.shadowColor = '#4ecdc4';
+        ctx.shadowBlur = 20;
+        ctx.fillStyle = '#4ecdc4';
+        if (ctx.roundRect) {
+            ctx.beginPath();
+            ctx.roundRect(ed.x - 7, ed.y - 14 + bob, 14, 28, 4);
+            ctx.fill();
+        } else {
+            ctx.fillRect(ed.x - 7, ed.y - 14 + bob, 14, 28);
+        }
+        ctx.fillStyle = '#0d5c5c';
+        ctx.fillRect(ed.x - 7, ed.y - 4 + bob, 14, 6);
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#ffd166';
+        ctx.beginPath();
+        ctx.moveTo(ed.x + 1, ed.y - 12 + bob);
+        ctx.lineTo(ed.x - 4, ed.y - 1 + bob);
+        ctx.lineTo(ed.x, ed.y - 1 + bob);
+        ctx.lineTo(ed.x - 2, ed.y + 12 + bob);
+        ctx.lineTo(ed.x + 4, ed.y - 2 + bob);
+        ctx.lineTo(ed.x, ed.y - 2 + bob);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+    }
+
+    function drawRainbowBackground() {
+        const t = performance.now() / 3000;
+        const r1 = 50 + 30 * Math.sin(t);
+        const g1 = 80 + 30 * Math.sin(t + 2);
+        const b1 = 140 + 40 * Math.sin(t + 4);
+        const grad = ctx.createLinearGradient(0, 0, viewW, viewH);
+        grad.addColorStop(0, `rgb(${r1}, ${g1}, ${b1})`);
+        grad.addColorStop(0.5, `rgb(${g1 + 40}, ${b1}, ${r1 + 60})`);
+        grad.addColorStop(1, `rgb(${b1}, ${r1 + 40}, ${g1 + 40})`);
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, viewW, viewH);
+    }
+
+    function drawWall(x, y, r, c) {
+        if (stage === 'portal-city') {
+            const hue = ((r * 7 + c * 13) * 37) % 360;
+            const light = 45 + ((r * 3 + c * 5) % 20);
+            ctx.fillStyle = `hsl(${hue}, 75%, ${light}%)`;
+            ctx.fillRect(x, y, TILE, TILE);
+            ctx.strokeStyle = `hsl(${hue}, 85%, ${light - 20}%)`;
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x + 1, y + 1, TILE - 2, TILE - 2);
+            ctx.fillStyle = 'rgba(255,255,255,0.5)';
+            const s = TILE * 0.18;
+            const o = TILE * 0.15;
+            ctx.fillRect(x + o, y + o, s, s);
+            ctx.fillRect(x + TILE - o - s, y + o, s, s);
+            ctx.fillRect(x + o, y + TILE - o - s, s, s);
+            ctx.fillRect(x + TILE - o - s, y + TILE - o - s, s, s);
+        } else {
+            const grad = ctx.createLinearGradient(x, y, x, y + TILE);
+            grad.addColorStop(0, '#5b6b8c');
+            grad.addColorStop(1, '#3a4a6b');
+            ctx.fillStyle = grad;
+            ctx.fillRect(x, y, TILE, TILE);
+            ctx.strokeStyle = '#2a3550';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x + 1, y + 1, TILE - 2, TILE - 2);
+        }
+    }
+
+    function drawFloor(x, y, r, c) {
+        if (stage === 'portal-city') {
+            const hue = ((r * 11 + c * 17) * 23) % 360;
+            const light = 78 + ((r + c) % 2 === 0 ? 4 : 0);
+            ctx.fillStyle = `hsl(${hue}, 60%, ${light}%)`;
+            ctx.fillRect(x, y, TILE, TILE);
+            ctx.strokeStyle = `hsla(${hue}, 60%, 50%, 0.3)`;
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x, y, TILE, TILE);
+        } else {
+            const isRoad = r >= 2 && r <= ROWS - 3;
+            if (isRoad) {
+                ctx.fillStyle = '#3a3a3a';
+                ctx.fillRect(x, y, TILE, TILE);
+                if (r === Math.floor(ROWS / 2) && c % 2 === 0) {
+                    ctx.fillStyle = '#ffd166';
+                    ctx.fillRect(x + TILE/2 - 3, y + TILE/2 - 20, 6, 40);
+                }
+                if (r === 2) {
+                    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+                    ctx.fillRect(x, y, TILE, 3);
+                }
+                if (r === ROWS - 3) {
+                    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+                    ctx.fillRect(x, y + TILE - 3, TILE, 3);
+                }
+            } else {
+                ctx.fillStyle = ((r + c) % 2 === 0) ? '#9a9a9a' : '#8e8e8e';
+                ctx.fillRect(x, y, TILE, TILE);
+                ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(x, y, TILE, TILE);
+            }
+        }
+    }
+
+    function drawTesla() {
+        if (!tesla) return;
+        tesla.bob += 0.05;
+        const bob = Math.sin(tesla.bob) * 3;
+        const x = tesla.x;
+        const y = tesla.y + bob;
+
+        const t = performance.now() / 200;
+        const pulse = 0.6 + Math.sin(t) * 0.4;
+        ctx.save();
+        ctx.shadowColor = '#4ecdc4';
+        ctx.shadowBlur = 40 * pulse;
+        ctx.strokeStyle = `rgba(78,205,196,${pulse})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(x, y, 38, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.fillStyle = '#f0f0f0';
+        ctx.beginPath();
+        ctx.arc(x, y, 20, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#aaa';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.fillStyle = '#f5d0a9';
+        ctx.beginPath();
+        ctx.arc(x, y - 2, 14, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = '#222';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x - 8, y + 3);
+        ctx.lineTo(x - 2, y + 3);
+        ctx.moveTo(x + 2, y + 3);
+        ctx.lineTo(x + 8, y + 3);
+        ctx.stroke();
+
+        ctx.fillStyle = '#000';
+        ctx.beginPath();
+        ctx.arc(x - 5, y - 4, 2, 0, Math.PI*2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(x + 5, y - 4, 2, 0, Math.PI*2);
+        ctx.fill();
+
+        ctx.font = 'bold 24px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('⚡', x, y - 32);
+
+        ctx.fillStyle = '#fff';
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 4;
+        ctx.font = 'bold 12px Arial';
+        ctx.strokeText('НИКОЛА ТЕСЛА', x, y - 50);
+        ctx.fillText('НИКОЛА ТЕСЛА', x, y - 50);
+    }
+
+    function drawBunker() {
+        if (!bunker) return;
+        bunker.bob += 0.05;
+        const bob = Math.sin(bunker.bob) * 2;
+        const x = bunker.x;
+        const y = bunker.y + bob;
+
+        const t = performance.now() / 300;
+        const pulse = 0.6 + Math.sin(t) * 0.4;
+        ctx.save();
+        ctx.shadowColor = '#06d6a0';
+        ctx.shadowBlur = 40 * pulse;
+        ctx.strokeStyle = `rgba(6,214,160,${pulse})`;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.arc(x, y, 40, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.fillStyle = '#4a4a4a';
+        ctx.beginPath();
+        ctx.arc(x, y + 6, 28, Math.PI, 0);
+        ctx.fill();
+        ctx.fillRect(x - 28, y + 6, 56, 22);
+        ctx.strokeStyle = '#222';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.fillStyle = '#2a2a2a';
+        ctx.fillRect(x - 10, y + 12, 20, 16);
+        ctx.strokeStyle = '#ffd166';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x - 10, y + 12, 20, 16);
+
+        ctx.fillStyle = '#ffd166';
+        ctx.beginPath();
+        ctx.arc(x + 5, y + 20, 2, 0, Math.PI*2);
+        ctx.fill();
+
+        ctx.font = 'bold 16px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#ffd166';
+        ctx.fillText('☢', x, y - 6);
+
+        ctx.fillStyle = '#fff';
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 4;
+        ctx.font = 'bold 13px Arial';
+        ctx.strokeText('🏢 БУНКЕР', x, y - 44);
+        ctx.fillText('🏢 БУНКЕР', x, y - 44);
+    }
+
+    function drawEnemy(e) {
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.beginPath();
+        ctx.ellipse(e.x, e.y + e.r*0.8, e.r*0.9, e.r*0.35, 0, 0, Math.PI*2);
+        ctx.fill();
+
+        // Аура заморозки — только пока frozen
+        if (e.frozen) {
+            const t = performance.now() / 200;
+            const alpha = 0.4 + Math.sin(t) * 0.3;
+            ctx.strokeStyle = `rgba(78, 205, 196, ${alpha})`;
+            ctx.lineWidth = 3;
+            ctx.setLineDash([6, 6]);
+            ctx.beginPath();
+            ctx.arc(e.x, e.y, e.r + 8, 0, Math.PI*2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        } else if (e.type === 'monster67') {
+            // Красная пульсирующая аура у активных 67
+            const t = performance.now() / 150;
+            const alpha = 0.5 + Math.sin(t) * 0.4;
+            ctx.strokeStyle = `rgba(255, 20, 147, ${alpha})`;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(e.x, e.y, e.r + 6, 0, Math.PI*2);
+            ctx.stroke();
+        }
+
+        ctx.fillStyle = e.color;
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.r, 0, Math.PI*2);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        if (e.type === 'president') {
+            ctx.save();
+            ctx.shadowColor = '#ffd700';
+            ctx.shadowBlur = 20;
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(e.x - e.r*0.9, e.y - e.r*1.5, e.r*1.8, e.r*0.7);
+            ctx.fillRect(e.x - e.r*1.1, e.y - e.r*0.9, e.r*2.2, 4);
+            ctx.restore();
+        }
+
+        ctx.font = `${e.r*1.4}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(e.emoji, e.x, e.y + 2);
+
+        ctx.font = 'bold 9px Arial';
+        ctx.fillStyle = '#fff';
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 3;
+        ctx.strokeText(e.name, e.x, e.y - e.r - 6);
+        ctx.fillText(e.name, e.x, e.y - e.r - 6);
+
+        // У активных 67 — восклицание
+        if (e.type === 'monster67' && !e.frozen) {
+            ctx.font = 'bold 11px Arial';
+            ctx.fillStyle = '#ff1493';
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 3;
+            ctx.strokeText('SIX-SEVEN!', e.x, e.y - e.r - 18);
+            ctx.fillText('SIX-SEVEN!', e.x, e.y - e.r - 18);
+        }
+    }
+
+    function drawPlayer() {
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.beginPath();
+        ctx.ellipse(player.x, player.y + PLAYER_RADIUS*0.7, PLAYER_RADIUS*0.9, PLAYER_RADIUS*0.35, 0, 0, Math.PI*2);
+        ctx.fill();
+
+        if (player.boostTime > 0) {
+            ctx.shadowColor = '#4ecdc4';
+            ctx.shadowBlur = 25;
+        }
+
+        ctx.fillStyle = '#4a90d9';
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, PLAYER_RADIUS, 0, Math.PI*2);
+        ctx.fill();
+        ctx.strokeStyle = '#2c5f8a';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.shadowBlur = 0;
+
+        ctx.fillStyle = '#f5d0a9';
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, PLAYER_RADIUS*0.75, 0, Math.PI*2);
+        ctx.fill();
+
+        ctx.fillStyle = '#3d2b1f';
+        ctx.beginPath();
+        ctx.arc(player.x, player.y - PLAYER_RADIUS*0.15, PLAYER_RADIUS*0.75, Math.PI, 0);
+        ctx.fill();
+
+        ctx.fillStyle = 'white';
+        ctx.beginPath();
+        ctx.arc(player.x - 4, player.y - 2, 3, 0, Math.PI*2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(player.x + 4, player.y - 2, 3, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = 'black';
+        ctx.beginPath();
+        ctx.arc(player.x - 4, player.y - 2, 1.5, 0, Math.PI*2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(player.x + 4, player.y - 2, 1.5, 0, Math.PI*2);
+        ctx.fill();
+
+        ctx.strokeStyle = '#8b5a2b';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(player.x, player.y + 5, 4, 0.1, Math.PI - 0.1);
+        ctx.stroke();
+
+        ctx.fillStyle = '#e8c07a';
+        ctx.beginPath();
+        ctx.ellipse(player.x + PLAYER_RADIUS + 4, player.y + 4, 9, 5, -0.3, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = '#c44b3c';
+        ctx.beginPath();
+        ctx.ellipse(player.x + PLAYER_RADIUS + 4, player.y + 4, 7, 2.5, -0.3, 0, Math.PI*2);
+        ctx.fill();
+    }
+
+    function drawJoystick() {
+        if (gameState !== 'playing') return;
+        const { baseX, baseY, baseRadius, knobX, knobY, knobRadius, active } = joystick;
+        ctx.beginPath();
+        ctx.arc(baseX, baseY, baseRadius, 0, Math.PI*2);
+        ctx.fillStyle = active ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.07)';
+        ctx.fill();
+        ctx.strokeStyle = active ? 'rgba(255,209,102,0.7)' : 'rgba(255,255,255,0.25)';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(baseX - baseRadius*0.7, baseY);
+        ctx.lineTo(baseX + baseRadius*0.7, baseY);
+        ctx.moveTo(baseX, baseY - baseRadius*0.7);
+        ctx.lineTo(baseX, baseY + baseRadius*0.7);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(knobX, knobY, knobRadius, 0, Math.PI*2);
+        const grad = ctx.createRadialGradient(knobX - knobRadius*0.3, knobY - knobRadius*0.3, 2, knobX, knobY, knobRadius);
+        grad.addColorStop(0, '#ffe08a');
+        grad.addColorStop(1, '#e6a817');
+        ctx.fillStyle = grad;
+        ctx.fill();
+        ctx.strokeStyle = '#8a6210';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+    }
+
+    // ============ УПРАВЛЕНИЕ ============
+    let keys = { left:false, right:false, up:false, down:false };
+    window.addEventListener('keydown', (e) => {
+        const k = e.key.toLowerCase();
+        if (k === 'arrowleft' || k === 'a' || k === 'ф') { keys.left = true; e.preventDefault(); }
+        if (k === 'arrowright' || k === 'd' || k === 'в') { keys.right = true; e.preventDefault(); }
+        if (k === 'arrowup' || k === 'w' || k === 'ц') { keys.up = true; e.preventDefault(); }
+        if (k === 'arrowdown' || k === 's' || k === 'ы') { keys.down = true; e.preventDefault(); }
+        if (k === ' ' || k === 'enter') {
+            if (dialogueActive) advanceDialogue();
+        }
+    });
+    window.addEventListener('keyup', (e) => {
+        const k = e.key.toLowerCase();
+        if (k === 'arrowleft' || k === 'a' || k === 'ф') keys.left = false;
+        if (k === 'arrowright' || k === 'd' || k === 'в') keys.right = false;
+        if (k === 'arrowup' || k === 'w' || k === 'ц') keys.up = false;
+        if (k === 'arrowdown' || k === 's' || k === 'ы') keys.down = false;
+    });
+
+    function getCanvasCoords(clientX, clientY) {
+        const rect = canvas.getBoundingClientRect();
+        return { x: clientX - rect.left, y: clientY - rect.top };
+    }
+
+    function isPointInJoystickArea(x, y) {
+        const zoneR = joystick.baseRadius * 1.9;
+        return Math.hypot(x - joystick.baseX, y - joystick.baseY) < zoneR;
+    }
+
+    canvas.addEventListener('touchstart', (e) => {
+        if (dialogueActive) {
+            advanceDialogue();
+            e.preventDefault();
+            return;
+        }
+        if (gameState !== 'playing') return;
+        for (let i = 0; i < e.changedTouches.length; i++) {
+            const t = e.changedTouches[i];
+            const p = getCanvasCoords(t.clientX, t.clientY);
+            if (!joystick.active && isPointInJoystickArea(p.x, p.y)) {
+                joystick.active = true;
+                joystick.touchId = t.identifier;
+                joystickDirFromPoint(p.x, p.y);
+                e.preventDefault();
+                break;
+            }
+        }
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', (e) => {
+        if (!joystick.active) return;
+        for (let i = 0; i < e.changedTouches.length; i++) {
+            const t = e.changedTouches[i];
+            if (t.identifier === joystick.touchId) {
+                const p = getCanvasCoords(t.clientX, t.clientY);
+                joystickDirFromPoint(p.x, p.y);
+                e.preventDefault();
+                break;
+            }
+        }
+    }, { passive: false });
+
+    function handleTouchEnd(e) {
+        for (let i = 0; i < e.changedTouches.length; i++) {
+            const t = e.changedTouches[i];
+            if (t.identifier === joystick.touchId) {
+                resetJoystick();
+                e.preventDefault();
+                break;
+            }
+        }
+    }
+    canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+    canvas.addEventListener('touchcancel', handleTouchEnd, { passive: false });
+
+    let mouseDown = false;
+    canvas.addEventListener('mousedown', (e) => {
+        if (dialogueActive) {
+            advanceDialogue();
+            return;
+        }
+        if (gameState !== 'playing') return;
+        const p = getCanvasCoords(e.clientX, e.clientY);
+        if (isPointInJoystickArea(p.x, p.y)) {
+            mouseDown = true;
+            joystick.active = true;
+            joystick.touchId = 'mouse';
+            joystickDirFromPoint(p.x, p.y);
+            e.preventDefault();
+        }
+    });
+    canvas.addEventListener('mousemove', (e) => {
+        if (!mouseDown) return;
+        const p = getCanvasCoords(e.clientX, e.clientY);
+        joystickDirFromPoint(p.x, p.y);
+    });
+    window.addEventListener('mouseup', () => {
+        if (mouseDown) {
+            mouseDown = false;
+            resetJoystick();
+        }
+    });
+
+    canvas.addEventListener('contextmenu', e => e.preventDefault());
+    document.addEventListener('gesturestart', e => e.preventDefault());
+
+    // ============ КНОПКИ ============
+    startBtn.addEventListener('click', beginGame);
+    retryBtn.addEventListener('click', () => { showScreen(null); beginGame(); });
+    winRetryBtn.addEventListener('click', () => { showScreen(null); beginGame(); });
+
+    // ============ ИНИЦИАЛИЗАЦИЯ ============
+    buildRoadMap();
+    requestAnimationFrame(() => {
+        resize();
+        resetGame();
+        showScreen('start');
+    });
+
+})();
+</script>
+</body>
+  </html>
